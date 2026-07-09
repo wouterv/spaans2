@@ -1,4 +1,5 @@
 import {api} from './api.js';
+import {stopAll} from './speech.js';
 import {renderChapters} from './views/chapters.js';
 import {renderChapterHub} from './views/chapter.js';
 import {renderWordsEntry} from './views/words-entry.js';
@@ -28,7 +29,7 @@ const routes = [
 ];
 
 async function route() {
-  window.speechSynthesis?.cancel();
+  stopAll();
   const hash = location.hash.replace(/^#\/?/, '');
   for (const [pattern, handler] of routes) {
     const match = hash.match(pattern);

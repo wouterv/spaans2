@@ -195,3 +195,29 @@ def test_check_verb_requires_person(client, verb_id):
         },
     )
     assert response.status_code == 422
+
+
+def test_check_with_alternatives_picks_best(app_instance, client, word_id):
+    # Spraakherkenning geeft meerdere kandidaten; de beste telt, stats één keer
+    body = client.post(
+        "/api/practice/check",
+        json={
+            "item_type": "word",
+            "item_id": word_id,
+            "direction": "nl_es",
+            "answer": "koe mo",
+            "alternatives": ["cómo", "komo"],
+        },
+    ).json()
+    assert body["result"] == "correct"
+
+    import sqlite3
+
+    conn = sqlite3.connect(app_instance.state.db_path)
+    row = conn.execute(
+        "SELECT correct, wrong FROM practice_stats "
+        "WHERE item_type = 'word' AND item_id = ? AND direction = 'nl_es'",
+        (word_id,),
+    ).fetchone()
+    conn.close()
+    assert row == (1, 0)

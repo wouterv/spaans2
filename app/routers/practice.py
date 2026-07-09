@@ -16,6 +16,8 @@ class CheckRequest(BaseModel):
     item_id: int
     direction: str
     answer: str
+    # Extra kandidaten van spraakherkenning; de beste uitkomst telt
+    alternatives: list[str] = []
     tense: str = "presente"
     person: str | None = None
 
@@ -80,10 +82,17 @@ def _update_stats(conn, body, is_correct):
     conn.commit()
 
 
+_RANK = {"correct": 0, "correct_accent": 1, "wrong": 2}
+
+
 @router.post("/check")
 def check(body: CheckRequest, conn=Depends(get_conn)):
     stored = _stored_answer(conn, body)
-    result = check_answer(stored, body.answer)
+    candidates = [body.answer, *body.alternatives]
+    result = min(
+        (check_answer(stored, candidate) for candidate in candidates),
+        key=lambda r: _RANK[r.result],
+    )
     _update_stats(conn, body, result.result != "wrong")
     return {
         "result": result.result,

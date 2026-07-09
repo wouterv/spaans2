@@ -1,5 +1,6 @@
 import {api, el} from '../api.js';
 import {createQueue, shuffle} from '../queue.js';
+import {LANG, canListen, listen, speak, stopListening} from '../speech.js';
 
 export async function renderPracticeWords(view, chapterId, direction, mode) {
   const words = await api(`/api/practice/items?chapter_id=${chapterId}&type=words`);
@@ -15,18 +16,38 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
   view.replaceChildren(backLink, container);
 
   const queue = createQueue(shuffle(words));
+  const speechMode = mode === 'spraak';
+  const withRecognition = speechMode && canListen();
   const promptOf = (word) => (direction === 'es_nl' ? word.spanish : word.dutch);
   const promptLang = direction === 'es_nl' ? 'Spaans' : 'Nederlands';
   const answerLang = direction === 'es_nl' ? 'Nederlands' : 'Spaans';
+  const promptLangCode = direction === 'es_nl' ? LANG.es : LANG.nl;
+  const answerLangCode = direction === 'es_nl' ? LANG.nl : LANG.es;
 
   function next() {
     if (!container.isConnected) return;
     if (queue.done) { renderSummary(); return; }
-    renderQuestion(queue.current);
+    if (withRecognition) renderQuestionSpeech(queue.current);
+    else renderQuestionTyped(queue.current);
   }
 
-  function renderQuestion(word) {
+  function progressBar() {
     const {mastered, total} = queue.progress;
+    return el('div', {class: 'practice-progress'},
+      `${mastered} van ${total} `, el('span', {class: 'sol'}, '●'),
+      ` nog ${total - mastered}`);
+  }
+
+  async function checkViaApi(word, answer, alternatives = []) {
+    return api('/api/practice/check', {
+      method: 'POST',
+      body: {item_type: 'word', item_id: word.id, direction, answer, alternatives},
+    });
+  }
+
+  /* ── Typen (ook fallback als herkenning ontbreekt) ── */
+
+  function renderQuestionTyped(word) {
     const input = el('input', {
       type: 'text', autocapitalize: 'off', autocomplete: 'off',
       placeholder: `${answerLang}…`, 'aria-label': `Antwoord in het ${answerLang}`,
@@ -42,29 +63,29 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
         if (!answer) return;
         answered = true;
         input.readOnly = true;
-        const result = await api('/api/practice/check', {
-          method: 'POST',
-          body: {item_type: 'word', item_id: word.id, direction, answer},
-        });
-        showResult(word, result, input, feedback);
+        const result = await checkViaApi(word, answer);
+        showTypedResult(result, input, feedback);
       },
     }, input);
 
     container.replaceChildren(
-      el('div', {class: 'practice-progress'},
-        `${mastered} van ${total} `, el('span', {class: 'sol'}, '●'),
-        ` nog ${total - mastered}`),
+      progressBar(),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, promptLang),
         el('div', {class: 'practice-word'}, promptOf(word)),
         form,
       ),
+      speechMode && !canListen()
+        ? el('p', {class: 'muted', style: 'font-size:0.85rem'},
+            'Spraakherkenning is hier niet beschikbaar — je hoort de opgave en typt het antwoord.')
+        : null,
       feedback,
     );
+    if (speechMode) speak(promptOf(word), promptLangCode);
     input.focus();
   }
 
-  function showResult(word, result, input, feedback) {
+  function showTypedResult(result, input, feedback) {
     if (result.result === 'correct') {
       input.classList.add('check-goed');
       feedback.replaceChildren(el('div', {class: 'feedback goed'}, '¡Muy bien!'));
@@ -95,8 +116,88 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
     continueButton.focus();
   }
 
+  /* ── Spraak (automodus): luisteren en spreken ── */
+
+  function renderQuestionSpeech(word) {
+    const mic = el('div', {class: 'mic-indicator', 'aria-hidden': 'true'}, '🎙️');
+    const heardLine = el('p', {class: 'muted'}, ' ');
+    const feedback = el('div', {});
+    const repeatButton = el('button', {onclick: () => ask()}, '🔁 Herhaal');
+    const giveUpButton = el('button', {onclick: () => giveUp()}, '🤷 Weet ik niet');
+
+    container.replaceChildren(
+      progressBar(),
+      el('div', {class: 'practice-card'},
+        el('div', {class: 'practice-hint'}, promptLang),
+        el('div', {class: 'practice-word'}, promptOf(word)),
+        mic,
+        heardLine,
+      ),
+      feedback,
+      el('div', {class: 'car-controls'}, repeatButton, giveUpButton),
+    );
+
+    let busy = false;
+
+    async function ask() {
+      if (busy) stopListening();
+      busy = true;
+      feedback.replaceChildren();
+      heardLine.textContent = ' ';
+      await speak(promptOf(word), promptLangCode);
+      if (!container.isConnected) return;
+      mic.classList.add('luistert');
+      const heard = await listen(answerLangCode);
+      mic.classList.remove('luistert');
+      busy = false;
+      if (!container.isConnected) return;
+      if (!heard) {
+        heardLine.textContent = 'Ik heb niets gehoord.';
+        await speak('Ik heb niets gehoord. Probeer opnieuw.', LANG.nl);
+        if (container.isConnected) repeatButton.focus();
+        return;
+      }
+      heardLine.textContent = `Gehoord: "${heard[0]}"`;
+      const result = await checkViaApi(word, heard[0], heard.slice(1));
+      if (!container.isConnected) return;
+      if (result.result === 'wrong') {
+        feedback.replaceChildren(
+          el('div', {class: 'feedback fout'},
+            'Helaas — het juiste antwoord is ',
+            el('span', {class: 'answer'}, result.correct_answer)),
+        );
+        queue.wrong();
+        await speak('Helaas. Het juiste antwoord is:', LANG.nl);
+        await speak(result.correct_answer.split(';')[0], answerLangCode);
+      } else {
+        feedback.replaceChildren(el('div', {class: 'feedback goed'}, '¡Muy bien!'));
+        queue.correct();
+        await speak('¡Muy bien!', LANG.es);
+      }
+      if (container.isConnected) next();
+    }
+
+    async function giveUp() {
+      stopListening();
+      const result = await checkViaApi(word, '');
+      if (!container.isConnected) return;
+      feedback.replaceChildren(
+        el('div', {class: 'feedback fout'},
+          'Het juiste antwoord is ',
+          el('span', {class: 'answer'}, result.correct_answer)),
+      );
+      queue.wrong();
+      await speak('Het juiste antwoord is:', LANG.nl);
+      await speak(result.correct_answer.split(';')[0], answerLangCode);
+      if (container.isConnected) next();
+    }
+
+    ask();
+  }
+
   function renderSummary() {
     const {total, wrong} = queue.progress;
+    if (speechMode) speak('Klaar! Goed gedaan.', LANG.nl);
     container.replaceChildren(
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-word'}, '¡Listo!'),

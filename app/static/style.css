@@ -200,6 +200,7 @@ table.entry td.es { font-family: var(--serif); }
 
 input.check-goed { border-color: var(--verde); background: var(--verde-zacht); }
 input.check-fout { border-color: var(--rojo); background: var(--rojo-zacht); }
+input.luistert { border-color: var(--sol); box-shadow: 0 0 0 2px var(--sol-zacht); }
 
 /* ── Automodus: grote bedienbare vlakken ─ */
 .car-controls { display: flex; gap: 0.75rem; margin-top: 1rem; }
