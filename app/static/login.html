@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spaans — inloggen</title>
+</head>
+<body>
+<form id="login-form">
+  <h1>Spaans</h1>
+  <input type="password" id="password" placeholder="Wachtwoord" autofocus autocomplete="current-password">
+  <button type="submit">Inloggen</button>
+  <p id="error" hidden>Onjuist wachtwoord</p>
+</form>
+<script>
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password: document.getElementById('password').value}),
+  });
+  if (res.ok) location.href = '/';
+  else document.getElementById('error').hidden = false;
+});
+</script>
+</body>
+</html>

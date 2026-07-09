@@ -31,5 +31,5 @@ def test_migrations_are_idempotent(tmp_path):
     from app.main import create_app
 
     db_path = tmp_path / "twice.db"
-    create_app(db_path=db_path)
-    create_app(db_path=db_path)
+    for _ in range(2):
+        create_app(db_path=db_path, password_hash="x", secret_key="y")
