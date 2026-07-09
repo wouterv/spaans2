@@ -1,0 +1,3 @@
+spaans.wjadv.nl {
+    reverse_proxy localhost:8100
+}
