@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from app import auth, db
-from app.routers import chapters, grammar, verbs, words
+from app.routers import chapters, grammar, practice, verbs, words
 
 DEFAULT_DB = Path(__file__).parent.parent / "data" / "spaans.db"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -51,6 +51,7 @@ def create_app(db_path=None, password_hash=None, secret_key=None):
     app.include_router(words.router)
     app.include_router(verbs.router)
     app.include_router(grammar.router)
+    app.include_router(practice.router)
 
     @app.get("/api/health")
     def health():
