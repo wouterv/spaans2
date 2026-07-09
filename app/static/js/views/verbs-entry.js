@@ -1,4 +1,4 @@
-import {api, el} from '../api.js';
+import {api, el, setChildren} from '../api.js';
 
 export const PERSONS = [
   ['yo', 'yo'],
@@ -106,7 +106,7 @@ export async function renderVerbsEntry(view, chapterId) {
 
   async function refreshList() {
     const verbs = await api(`/api/verbs?chapter_id=${chapterId}`);
-    listWrap.replaceChildren(
+    setChildren(listWrap, 
       el('div', {class: 'eyebrow'}, `${verbs.length} werkwoorden`),
       verbs.length
         ? el('div', {}, ...verbs.slice().reverse().map(verbCard))
@@ -156,7 +156,7 @@ export async function renderVerbsEntry(view, chapterId) {
     );
   }
 
-  view.replaceChildren(
+  setChildren(view, 
     el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, `← ${chapter.name}`)),
     el('h1', {}, 'Werkwoorden'),
     form,

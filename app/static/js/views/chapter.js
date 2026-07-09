@@ -1,4 +1,4 @@
-import {api, el} from '../api.js';
+import {api, el, setChildren} from '../api.js';
 
 export async function renderChapterHub(view, chapterId) {
   const chapters = await api('/api/chapters');
@@ -35,7 +35,7 @@ export async function renderChapterHub(view, chapterId) {
     }),
   );
 
-  view.replaceChildren(
+  setChildren(view, 
     el('p', {}, el('a', {href: '#/', class: 'muted'}, '← Hoofdstukken')),
     el('h1', {}, chapter.name),
 

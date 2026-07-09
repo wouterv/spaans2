@@ -1,4 +1,4 @@
-import {api, el} from '../api.js';
+import {api, el, setChildren} from '../api.js';
 
 export async function renderGrammarEntry(view, chapterId) {
   const chapters = await api('/api/chapters');
@@ -52,7 +52,7 @@ export async function renderGrammarEntry(view, chapterId) {
     editingId = null;
     titleInput.value = '';
     explanationInput.value = '';
-    examplesWrap.replaceChildren(exampleRow());
+    setChildren(examplesWrap, exampleRow());
     submitButton.textContent = 'Opslaan';
     cancelButton.hidden = true;
     titleInput.focus();
@@ -111,7 +111,7 @@ export async function renderGrammarEntry(view, chapterId) {
 
   async function refreshList() {
     const rules = await api(`/api/grammar?chapter_id=${chapterId}`);
-    listWrap.replaceChildren(
+    setChildren(listWrap, 
       el('div', {class: 'eyebrow'}, `${rules.length} regels`),
       rules.length
         ? el('div', {}, ...rules.map(ruleCard))
@@ -129,7 +129,7 @@ export async function renderGrammarEntry(view, chapterId) {
             editingId = rule.id;
             titleInput.value = rule.title;
             explanationInput.value = rule.explanation;
-            examplesWrap.replaceChildren(
+            setChildren(examplesWrap, 
               ...(rule.examples.length
                 ? rule.examples.map((ex) => exampleRow(ex.spanish, ex.dutch))
                 : [exampleRow()]),
@@ -162,7 +162,7 @@ export async function renderGrammarEntry(view, chapterId) {
     );
   }
 
-  view.replaceChildren(
+  setChildren(view, 
     el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, `← ${chapter.name}`)),
     el('h1', {}, 'Grammatica'),
     form,

@@ -1,4 +1,4 @@
-import {api, el} from '../api.js';
+import {api, el, setChildren} from '../api.js';
 import {LANG, speak, stopAll} from '../speech.js';
 
 export async function renderGrammarReader(view, chapterId) {
@@ -6,13 +6,13 @@ export async function renderGrammarReader(view, chapterId) {
   const backLink = el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, '← Hoofdstuk'));
 
   if (!rules.length) {
-    view.replaceChildren(backLink,
+    setChildren(view, backLink,
       el('p', {class: 'muted'}, 'Dit hoofdstuk heeft nog geen grammaticaregels.'));
     return;
   }
 
   const container = el('div', {});
-  view.replaceChildren(backLink, container);
+  setChildren(view, backLink, container);
   let index = 0;
 
   async function readAloud(rule) {
@@ -39,7 +39,7 @@ export async function renderGrammarReader(view, chapterId) {
       onclick: () => { index++; show(); },
     }, 'Volgende →');
 
-    container.replaceChildren(
+    setChildren(container, 
       el('div', {class: 'practice-progress'}, `Regel ${index + 1} van ${rules.length}`),
       el('div', {class: 'card'},
         el('h2', {style: 'margin-top:0'}, rule.title),

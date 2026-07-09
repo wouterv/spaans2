@@ -22,6 +22,12 @@ export function el(tag, attrs = {}, ...children) {
     else if (key === 'html') node.innerHTML = value;
     else if (value !== null && value !== undefined) node.setAttribute(key, value);
   }
-  node.append(...children.filter((c) => c !== null && c !== undefined));
+  node.append(...children.filter((c) => c !== null && c !== undefined && c !== false));
   return node;
+}
+
+export function setChildren(parent, ...children) {
+  parent.replaceChildren(
+    ...children.filter((c) => c !== null && c !== undefined && c !== false),
+  );
 }

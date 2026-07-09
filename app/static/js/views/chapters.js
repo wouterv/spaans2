@@ -1,4 +1,4 @@
-import {api, el} from '../api.js';
+import {api, el, setChildren} from '../api.js';
 
 export async function renderChapters(view) {
   const chapters = await api('/api/chapters');
@@ -71,7 +71,7 @@ export async function renderChapters(view) {
     ),
   );
 
-  view.replaceChildren(
+  setChildren(view, 
     el('h1', {}, 'Hoofdstukken'),
     form,
     el('div', {class: 'eyebrow'}, chapters.length ? 'Jouw lessen' : ''),

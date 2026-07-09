@@ -1,4 +1,4 @@
-import {api, el} from '../api.js';
+import {api, el, setChildren} from '../api.js';
 import {createQueue, shuffle} from '../queue.js';
 import {LANG, canListen, listen, speak, stopListening} from '../speech.js';
 
@@ -7,13 +7,13 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
   const backLink = el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, '← Hoofdstuk'));
 
   if (!words.length) {
-    view.replaceChildren(backLink,
+    setChildren(view, backLink,
       el('p', {class: 'muted'}, 'Dit hoofdstuk heeft nog geen woorden om te oefenen.'));
     return;
   }
 
   const container = el('div', {});
-  view.replaceChildren(backLink, container);
+  setChildren(view, backLink, container);
 
   const queue = createQueue(shuffle(words));
   const speechMode = mode === 'spraak';
@@ -68,7 +68,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       },
     }, input);
 
-    container.replaceChildren(
+    setChildren(container, 
       progressBar(),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, promptLang),
@@ -88,7 +88,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
   function showTypedResult(result, input, feedback) {
     if (result.result === 'correct') {
       input.classList.add('check-goed');
-      feedback.replaceChildren(el('div', {class: 'feedback goed'}, '¡Muy bien!'));
+      setChildren(feedback, el('div', {class: 'feedback goed'}, '¡Muy bien!'));
       queue.correct();
       setTimeout(next, 700);
       return;
@@ -96,7 +96,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
     const continueButton = el('button', {class: 'btn-primary btn-big', onclick: next}, 'Verder');
     if (result.result === 'correct_accent') {
       input.classList.add('check-goed');
-      feedback.replaceChildren(
+      setChildren(feedback, 
         el('div', {class: 'feedback accent'},
           'Goed! Maar let op het accent: ',
           el('span', {class: 'answer'}, result.matched)),
@@ -105,7 +105,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       queue.correct();
     } else {
       input.classList.add('check-fout');
-      feedback.replaceChildren(
+      setChildren(feedback, 
         el('div', {class: 'feedback fout'},
           'Helaas — het juiste antwoord is ',
           el('span', {class: 'answer'}, result.correct_answer)),
@@ -125,7 +125,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
     const repeatButton = el('button', {onclick: () => ask()}, '🔁 Herhaal');
     const giveUpButton = el('button', {onclick: () => giveUp()}, '🤷 Weet ik niet');
 
-    container.replaceChildren(
+    setChildren(container, 
       progressBar(),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, promptLang),
@@ -142,7 +142,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
     async function ask() {
       if (busy) stopListening();
       busy = true;
-      feedback.replaceChildren();
+      setChildren(feedback, );
       heardLine.textContent = ' ';
       await speak(promptOf(word), promptLangCode);
       if (!container.isConnected) return;
@@ -161,7 +161,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       const result = await checkViaApi(word, heard[0], heard.slice(1));
       if (!container.isConnected) return;
       if (result.result === 'wrong') {
-        feedback.replaceChildren(
+        setChildren(feedback, 
           el('div', {class: 'feedback fout'},
             'Helaas — het juiste antwoord is ',
             el('span', {class: 'answer'}, result.correct_answer)),
@@ -170,7 +170,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
         await speak('Helaas. Het juiste antwoord is:', LANG.nl);
         await speak(result.correct_answer.split(';')[0], answerLangCode);
       } else {
-        feedback.replaceChildren(el('div', {class: 'feedback goed'}, '¡Muy bien!'));
+        setChildren(feedback, el('div', {class: 'feedback goed'}, '¡Muy bien!'));
         queue.correct();
         await speak('¡Muy bien!', LANG.es);
       }
@@ -181,7 +181,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       stopListening();
       const result = await checkViaApi(word, '');
       if (!container.isConnected) return;
-      feedback.replaceChildren(
+      setChildren(feedback, 
         el('div', {class: 'feedback fout'},
           'Het juiste antwoord is ',
           el('span', {class: 'answer'}, result.correct_answer)),
@@ -198,7 +198,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
   function renderSummary() {
     const {total, wrong} = queue.progress;
     if (speechMode) speak('Klaar! Goed gedaan.', LANG.nl);
-    container.replaceChildren(
+    setChildren(container, 
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-word'}, '¡Listo!'),
         el('p', {}, `${total} woorden geoefend, ${queue.firstTryCorrect} in één keer goed.`),

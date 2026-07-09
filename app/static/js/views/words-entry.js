@@ -1,4 +1,4 @@
-import {api, el} from '../api.js';
+import {api, el, setChildren} from '../api.js';
 
 export async function renderWordsEntry(view, chapterId) {
   const chapters = await api('/api/chapters');
@@ -54,7 +54,7 @@ export async function renderWordsEntry(view, chapterId) {
   async function refreshList() {
     const words = await api(`/api/words?chapter_id=${chapterId}`);
     const rows = words.slice().reverse().map((word) => wordRow(word));
-    listWrap.replaceChildren(
+    setChildren(listWrap, 
       el('div', {class: 'eyebrow'}, `${words.length} woorden`),
       words.length
         ? el('table', {class: 'entry'},
@@ -113,7 +113,7 @@ export async function renderWordsEntry(view, chapterId) {
     esEdit.focus();
   }
 
-  view.replaceChildren(
+  setChildren(view, 
     el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, `← ${chapter.name}`)),
     el('h1', {}, 'Woorden'),
     form,

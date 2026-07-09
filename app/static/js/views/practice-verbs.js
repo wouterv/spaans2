@@ -1,4 +1,4 @@
-import {api, el} from '../api.js';
+import {api, el, setChildren} from '../api.js';
 import {createQueue, shuffle} from '../queue.js';
 import {LANG, canListen, listen, speak} from '../speech.js';
 import {PERSONS} from './verbs-entry.js';
@@ -13,13 +13,13 @@ export async function renderPracticeVerbs(view, chapterId, mode) {
   const backLink = el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, '← Hoofdstuk'));
 
   if (!verbs.length) {
-    view.replaceChildren(backLink,
+    setChildren(view, backLink,
       el('p', {class: 'muted'}, 'Dit hoofdstuk heeft nog geen werkwoorden om te oefenen.'));
     return;
   }
 
   const container = el('div', {});
-  view.replaceChildren(backLink, container);
+  setChildren(view, backLink, container);
 
   const queue = createQueue(shuffle(verbs));
   const tense = 'presente';
@@ -107,7 +107,7 @@ export async function renderPracticeVerbs(view, chapterId, mode) {
       }
     }
 
-    container.replaceChildren(
+    setChildren(container, 
       progressLine(mastered, total),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, `Nederlands · ${tense}`),
@@ -165,7 +165,7 @@ export async function renderPracticeVerbs(view, chapterId, mode) {
   function renderSummary() {
     const {total, wrong} = queue.progress;
     if (speechMode) speak('Klaar! Goed gedaan.', LANG.nl);
-    container.replaceChildren(
+    setChildren(container, 
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-word'}, '¡Listo!'),
         el('p', {}, `${total} werkwoorden geoefend, ${queue.firstTryCorrect} in één keer foutloos.`),
