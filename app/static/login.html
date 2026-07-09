@@ -3,15 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Spaans — inloggen</title>
+<link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<form id="login-form">
-  <h1>Spaans</h1>
-  <input type="password" id="password" placeholder="Wachtwoord" autofocus autocomplete="current-password">
-  <button type="submit">Inloggen</button>
-  <p id="error" hidden>Onjuist wachtwoord</p>
-</form>
+<div class="login-wrap">
+  <form id="login-form" class="card login-card">
+    <h1>Espa<span class="tilde">ñ</span>ol</h1>
+    <p class="muted">Jouw Spaanse lessen, om te oefenen.</p>
+    <input type="password" id="password" placeholder="Wachtwoord" autofocus
+           autocomplete="current-password" aria-label="Wachtwoord">
+    <button type="submit" class="btn-primary btn-big">Inloggen</button>
+    <p id="error" class="error" hidden>Onjuist wachtwoord</p>
+  </form>
+</div>
 <script>
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();

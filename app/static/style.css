@@ -1,0 +1,239 @@
+/* Spaans — ontwerptokens: añil (indigoblauw) & sol (saffraan) */
+:root {
+  --paper: #f7f6f2;
+  --card: #ffffff;
+  --ink: #1c2b3a;
+  --muted: #5c6b7a;
+  --line: #dcdfe3;
+  --azul: #2456a6;
+  --azul-diep: #1b4485;
+  --sol: #e9a820;
+  --verde: #2f8a57;
+  --verde-zacht: #e3f2e9;
+  --rojo: #c2402f;
+  --rojo-zacht: #f9e7e3;
+  --sol-zacht: #fbf0d7;
+  --radius: 10px;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #141a21;
+    --card: #1e2630;
+    --ink: #e8eaed;
+    --muted: #9aa5b1;
+    --line: #333d48;
+    --azul: #6d9be0;
+    --azul-diep: #8fb3ea;
+    --sol: #e9a820;
+    --verde: #52b183;
+    --verde-zacht: #1d3a2c;
+    --rojo: #e06552;
+    --rojo-zacht: #46231d;
+    --sol-zacht: #3d3016;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ── Topbar ───────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--card);
+  border-bottom: 2px solid var(--azul);
+}
+.wordmark {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--azul);
+  text-decoration: none;
+  letter-spacing: 0.01em;
+}
+.wordmark .tilde { color: var(--sol); }
+.topbar .spacer { flex: 1; }
+.topbar button { font-size: 0.85rem; }
+
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 4rem;
+}
+
+h1, h2 { font-family: var(--serif); line-height: 1.2; }
+h1 { font-size: 1.5rem; margin: 0.5rem 0 1rem; }
+h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+.muted { color: var(--muted); }
+.eyebrow {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 1rem 0 0.25rem;
+}
+
+/* ── Knoppen & invoer ─────────────────── */
+button, .btn {
+  font: inherit;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+button:hover, .btn:hover { border-color: var(--azul); }
+.btn-primary {
+  background: var(--azul);
+  border-color: var(--azul);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--azul-diep); border-color: var(--azul-diep); }
+.btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn-ghost:hover { color: var(--ink); border-color: var(--line); }
+.btn-big {
+  font-size: 1.15rem;
+  padding: 0.9rem 1.2rem;
+  width: 100%;
+}
+button:focus-visible, .btn:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid var(--sol);
+  outline-offset: 1px;
+}
+
+input[type=text], input[type=password], textarea, select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.7rem;
+  width: 100%;
+}
+label { font-size: 0.85rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
+
+.row { display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap; }
+.row > * { flex: 1; min-width: 8rem; }
+.row > .fixed { flex: 0 0 auto; min-width: 0; }
+
+/* ── Lijsten & kaarten ────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+.list { list-style: none; padding: 0; margin: 0; }
+.list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 0.5rem;
+}
+.list li a.grow { flex: 1; color: inherit; text-decoration: none; }
+.list li .grow { flex: 1; }
+.list .counts { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.icon-btn {
+  border: none;
+  background: none;
+  padding: 0.25rem;
+  font-size: 1rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--ink); }
+
+table.entry { width: 100%; border-collapse: collapse; }
+table.entry td, table.entry th {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+table.entry th { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+table.entry td.es { font-family: var(--serif); }
+
+/* ── Oefenkaart: het woord is de held ─── */
+.practice-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 2rem 1.25rem;
+  text-align: center;
+  margin: 1rem 0;
+}
+.practice-word {
+  font-family: var(--serif);
+  font-size: clamp(2rem, 8vw, 3.2rem);
+  font-weight: 700;
+  margin: 0.5rem 0;
+  overflow-wrap: break-word;
+}
+.practice-hint { color: var(--muted); font-size: 0.85rem; }
+.practice-progress { font-size: 0.85rem; color: var(--muted); }
+.practice-progress .sol { color: var(--sol); font-weight: 700; }
+
+.feedback { border-radius: var(--radius); padding: 0.75rem 1rem; margin: 0.75rem 0; }
+.feedback.goed { background: var(--verde-zacht); color: var(--verde); }
+.feedback.accent { background: var(--sol-zacht); color: var(--ink); }
+.feedback.fout { background: var(--rojo-zacht); color: var(--rojo); }
+.feedback .answer { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; }
+
+input.check-goed { border-color: var(--verde); background: var(--verde-zacht); }
+input.check-fout { border-color: var(--rojo); background: var(--rojo-zacht); }
+
+/* ── Automodus: grote bedienbare vlakken ─ */
+.car-controls { display: flex; gap: 0.75rem; margin-top: 1rem; }
+.car-controls button {
+  flex: 1;
+  font-size: 1.3rem;
+  padding: 1.4rem 0.5rem;
+  border-radius: 14px;
+}
+.mic-indicator { font-size: 2rem; }
+.mic-indicator.luistert { animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .mic-indicator.luistert { animation: none; }
+}
+
+/* ── Login ────────────────────────────── */
+.login-wrap {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.login-card { width: 100%; max-width: 22rem; text-align: center; }
+.login-card h1 {
+  font-family: var(--serif);
+  color: var(--azul);
+  font-size: 2rem;
+}
+.login-card h1 .tilde { color: var(--sol); }
+.login-card input { margin-bottom: 0.75rem; text-align: center; }
+.error { color: var(--rojo); font-size: 0.9rem; }
+
+@media (min-width: 640px) {
+  main { padding-top: 1.5rem; }
+  .btn-big { width: auto; }
+}

@@ -2,8 +2,9 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import auth, db
@@ -14,6 +15,8 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 # Paden die zonder login bereikbaar zijn
 OPEN_PATHS = {"/api/login", "/api/health", "/login"}
+# Statische assets bevatten geen data; de loginpagina heeft ze nodig
+OPEN_PREFIXES = ("/static/",)
 
 
 class LoginRequest(BaseModel):
@@ -39,7 +42,7 @@ def create_app(db_path=None, password_hash=None, secret_key=None):
     @app.middleware("http")
     async def require_auth(request, call_next):
         path = request.url.path
-        if path not in OPEN_PATHS:
+        if path not in OPEN_PATHS and not path.startswith(OPEN_PREFIXES):
             token = request.cookies.get(auth.COOKIE_NAME, "")
             if not auth.session_is_valid(secret_key, token):
                 if path.startswith("/api/"):
@@ -61,7 +64,7 @@ def create_app(db_path=None, password_hash=None, secret_key=None):
     def login(body: LoginRequest):
         if not auth.verify_password(body.password, password_hash):
             return JSONResponse({"detail": "Onjuist wachtwoord"}, status_code=401)
-        response = JSONResponse(None, status_code=204)
+        response = Response(status_code=204)
         response.set_cookie(
             auth.COOKIE_NAME,
             auth.create_session_token(secret_key),
@@ -77,8 +80,14 @@ def create_app(db_path=None, password_hash=None, secret_key=None):
 
     @app.post("/api/logout", status_code=204)
     def logout():
-        response = JSONResponse(None, status_code=204)
+        response = Response(status_code=204)
         response.delete_cookie(auth.COOKIE_NAME)
         return response
+
+    @app.get("/")
+    def index():
+        return FileResponse(STATIC_DIR / "index.html")
+
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     return app
