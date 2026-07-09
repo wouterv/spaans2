@@ -8,11 +8,13 @@ import {renderGrammarEntry} from './views/grammar-entry.js';
 import {renderGrammarReader} from './views/grammar-reader.js';
 import {renderPracticeWords} from './views/practice-words.js';
 import {renderPracticeVerbs} from './views/practice-verbs.js';
+import {renderVoiceSettings} from './views/voice-settings.js';
 
 const view = document.getElementById('view');
 
 const routes = [
   [/^$/, () => renderChapters(view)],
+  [/^stemmen$/, () => renderVoiceSettings(view)],
   [/^h\/(\d+)$/, (id) => renderChapterHub(view, +id)],
   [/^h\/(\d+)\/woorden$/, (id) => renderWordsEntry(view, +id)],
   [/^h\/(\d+)\/werkwoorden$/, (id) => renderVerbsEntry(view, +id)],

@@ -1,6 +1,8 @@
 // Dunne wrapper rond de Web Speech API (TTS + spraakherkenning).
 // Werkt het best in Chrome (Android/desktop); listen() vereist HTTPS.
 
+import {pickVoice} from './voices.js';
+
 export const LANG = {es: 'es-ES', nl: 'nl-NL'};
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -10,14 +12,38 @@ export function canListen() {
   return Boolean(SpeechRecognition);
 }
 
-export function speak(text, lang) {
-  return new Promise((resolve) => {
-    if (!window.speechSynthesis) { resolve(); return; }
+// Stemmen laden asynchroon (zeker op Android); wacht er één keer netjes op.
+let voicesPromise = null;
+
+export function loadVoices() {
+  if (!window.speechSynthesis) return Promise.resolve([]);
+  const now = speechSynthesis.getVoices();
+  if (now.length) return Promise.resolve(now);
+  if (!voicesPromise) {
+    voicesPromise = new Promise((resolve) => {
+      const done = () => resolve(speechSynthesis.getVoices());
+      speechSynthesis.addEventListener('voiceschanged', done, {once: true});
+      setTimeout(done, 1500);
+    });
+  }
+  return voicesPromise;
+}
+
+export function preferredVoiceName(lang) {
+  return localStorage.getItem(`spaans-stem-${lang.slice(0, 2)}`);
+}
+
+export function setPreferredVoiceName(lang, name) {
+  localStorage.setItem(`spaans-stem-${lang.slice(0, 2)}`, name);
+}
+
+export async function speak(text, lang, {voiceName = null} = {}) {
+  if (!window.speechSynthesis) return;
+  const voices = await loadVoices();
+  const voice = pickVoice(voices, lang, voiceName ?? preferredVoiceName(lang));
+  await new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
-    const voice = speechSynthesis
-      .getVoices()
-      .find((v) => v.lang.replace('_', '-').startsWith(lang.slice(0, 2)));
     if (voice) utterance.voice = voice;
     utterance.onend = resolve;
     utterance.onerror = resolve;
