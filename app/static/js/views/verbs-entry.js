@@ -18,6 +18,7 @@ export async function renderVerbsEntry(view, chapterId) {
 
   const infinitiveInput = el('input', {
     type: 'text', placeholder: 'hablar', autocapitalize: 'off', 'aria-label': 'Infinitief (Spaans)',
+    onchange: () => fetchConjugations(),
   });
   const translationInput = el('input', {
     type: 'text', placeholder: 'praten; spreken', autocapitalize: 'off', 'aria-label': 'Vertaling (Nederlands)',
@@ -37,9 +38,37 @@ export async function renderVerbsEntry(view, chapterId) {
     onclick: () => resetForm(),
   }, 'Annuleren');
 
+  const fetchStatus = el('span', {class: 'muted', style: 'font-size:0.8rem'});
+
+  // Vult lege vormvelden automatisch met vervoegingen van Wiktionary;
+  // wat de gebruiker zelf al invulde blijft staan.
+  async function fetchConjugations() {
+    const infinitive = infinitiveInput.value.trim();
+    if (!infinitive) { fetchStatus.textContent = ''; return; }
+    fetchStatus.textContent = 'Vervoegingen ophalen…';
+    let result;
+    try {
+      result = await api(
+        `/api/verbs/conjugate?infinitive=${encodeURIComponent(infinitive)}`);
+    } catch (e) {
+      if (infinitiveInput.value.trim() === infinitive) fetchStatus.textContent = e.message;
+      return;
+    }
+    if (infinitiveInput.value.trim() !== infinitive) return;
+    const filled = PERSONS.filter(([key]) => {
+      if (formInputs[key].value.trim()) return false;
+      formInputs[key].value = result.forms[key];
+      return true;
+    });
+    fetchStatus.textContent = filled.length
+      ? 'Vervoegingen opgehaald van Wiktionary — controleer ze even'
+      : '';
+  }
+
   function resetForm() {
     editingId = null;
     for (const input of allInputs) input.value = '';
+    fetchStatus.textContent = '';
     submitButton.textContent = 'Opslaan';
     cancelButton.hidden = true;
     infinitiveInput.focus();
@@ -87,6 +116,7 @@ export async function renderVerbsEntry(view, chapterId) {
       el('div', {}, el('label', {}, 'Vertaling'), translationInput),
       el('div', {class: 'fixed'}, el('label', {}, 'Tijd'), tenseSelect),
     ),
+    el('div', {style: 'margin-top:0.35rem; min-height:1.1rem'}, fetchStatus),
     el('div', {class: 'row', style: 'margin-top:0.75rem'},
       ...PERSONS.slice(0, 3).map(([key, label]) =>
         el('div', {}, el('label', {}, label), formInputs[key])),
@@ -126,6 +156,7 @@ export async function renderVerbsEntry(view, chapterId) {
           class: 'icon-btn', title: 'Bewerken', 'aria-label': `Bewerk ${verb.infinitive_es}`,
           onclick: () => {
             editingId = verb.id;
+            fetchStatus.textContent = '';
             infinitiveInput.value = verb.infinitive_es;
             translationInput.value = verb.translation_nl;
             for (const [key] of PERSONS) formInputs[key].value = forms[key] || '';

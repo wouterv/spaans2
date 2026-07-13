@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app import conjugate
 from app.deps import chapter_or_404, get_conn
 
 router = APIRouter(prefix="/api/verbs")
@@ -65,6 +66,20 @@ def list_verbs(chapter_id: int, conn=Depends(get_conn)):
                 row["person"]
             ] = row["form"]
     return list(verbs.values())
+
+
+@router.get("/conjugate")
+def conjugate_verb(infinitive: str):
+    try:
+        forms = conjugate.lookup_presente(infinitive.strip().lower())
+    except conjugate.SourceUnavailable:
+        raise HTTPException(status_code=503, detail="Wiktionary is niet bereikbaar")
+    if not forms:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Geen vervoegingen gevonden voor '{infinitive.strip()}'",
+        )
+    return {"tense": "presente", "forms": forms}
 
 
 @router.post("", status_code=201)
