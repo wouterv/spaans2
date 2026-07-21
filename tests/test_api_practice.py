@@ -100,6 +100,40 @@ def test_check_word_accent_hint(client, word_id):
     assert body["matched"] == "cómo"
 
 
+def test_check_word_gender_pair_both_directions(client, chapter_id):
+    word_id = client.post(
+        "/api/words",
+        json={
+            "chapter_id": chapter_id,
+            "spanish": "el primo/la prima",
+            "dutch": "de neef/de nicht",
+        },
+    ).json()["id"]
+
+    body = client.post(
+        "/api/practice/check",
+        json={
+            "item_type": "word",
+            "item_id": word_id,
+            "direction": "es_nl",
+            "answer": "de nicht",
+        },
+    ).json()
+    assert body["result"] == "correct"
+    assert body["correct_answer"] == "de neef/de nicht"
+
+    body = client.post(
+        "/api/practice/check",
+        json={
+            "item_type": "word",
+            "item_id": word_id,
+            "direction": "nl_es",
+            "answer": "la prima",
+        },
+    ).json()
+    assert body["result"] == "correct"
+
+
 def test_check_verb_form(client, verb_id):
     body = client.post(
         "/api/practice/check",

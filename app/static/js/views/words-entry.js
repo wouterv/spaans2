@@ -6,11 +6,11 @@ export async function renderWordsEntry(view, chapterId) {
   if (!chapter) { location.hash = '#/'; return; }
 
   const spanishInput = el('input', {
-    type: 'text', placeholder: 'el coche; el auto', autocapitalize: 'off',
+    type: 'text', placeholder: 'el primo/la prima; el pariente', autocapitalize: 'off',
     'aria-label': 'Spaans',
   });
   const dutchInput = el('input', {
-    type: 'text', placeholder: 'de auto; de wagen', autocapitalize: 'off',
+    type: 'text', placeholder: 'de neef/de nicht', autocapitalize: 'off',
     'aria-label': 'Nederlands',
   });
 
@@ -46,7 +46,8 @@ export async function renderWordsEntry(view, chapterId) {
       el('button', {class: 'btn-primary fixed', type: 'submit'}, 'Opslaan'),
     ),
     el('p', {class: 'muted', style: 'font-size:0.8rem; margin:0.5rem 0 0'},
-      'Tab wisselt veld · Enter slaat op · Esc maakt leeg · synoniemen scheiden met ;'),
+      'Tab wisselt veld · Enter slaat op · Esc maakt leeg · ' +
+      'synoniemen scheiden met ; · mannelijk/vrouwelijk met / (el primo/la prima)'),
   );
 
   const listWrap = el('div', {});

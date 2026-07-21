@@ -1,6 +1,7 @@
 import {api, el, setChildren} from '../api.js';
 import {createQueue, shuffle} from '../queue.js';
 import {LANG, canListen, listen, speak, stopListening} from '../speech.js';
+import {readable, speakable} from '../wordtext.js';
 
 export async function renderPracticeWords(view, chapterId, direction, mode) {
   const words = await api(`/api/practice/items?chapter_id=${chapterId}&type=words`);
@@ -72,7 +73,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       progressBar(),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, promptLang),
-        el('div', {class: 'practice-word'}, promptOf(word)),
+        el('div', {class: 'practice-word'}, readable(promptOf(word))),
         form,
       ),
       speechMode && !canListen()
@@ -81,7 +82,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
         : null,
       feedback,
     );
-    if (speechMode) speak(promptOf(word), promptLangCode);
+    if (speechMode) speak(speakable(promptOf(word)), promptLangCode);
     input.focus();
   }
 
@@ -129,7 +130,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       progressBar(),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, promptLang),
-        el('div', {class: 'practice-word'}, promptOf(word)),
+        el('div', {class: 'practice-word'}, readable(promptOf(word))),
         mic,
         heardLine,
       ),
@@ -144,7 +145,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       busy = true;
       setChildren(feedback, );
       heardLine.textContent = ' ';
-      await speak(promptOf(word), promptLangCode);
+      await speak(speakable(promptOf(word)), promptLangCode);
       if (!container.isConnected) return;
       mic.classList.add('luistert');
       const heard = await listen(answerLangCode);
@@ -168,7 +169,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
         );
         queue.wrong();
         await speak('Helaas. Het juiste antwoord is:', LANG.nl);
-        await speak(result.correct_answer.split(';')[0], answerLangCode);
+        await speak(speakable(result.correct_answer), answerLangCode);
       } else {
         setChildren(feedback, el('div', {class: 'feedback goed'}, '¡Muy bien!'));
         queue.correct();
@@ -188,7 +189,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       );
       queue.wrong();
       await speak('Het juiste antwoord is:', LANG.nl);
-      await speak(result.correct_answer.split(';')[0], answerLangCode);
+      await speak(speakable(result.correct_answer), answerLangCode);
       if (container.isConnected) next();
     }
 

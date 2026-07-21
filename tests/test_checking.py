@@ -35,6 +35,34 @@ def test_any_synonym_counts_as_correct():
     assert check_answer(stored, "fiets").result == "wrong"
 
 
+def test_gender_pair_accepts_each_form_and_the_pair():
+    stored = "de neef/de nicht"
+    assert check_answer(stored, "de neef").result == "correct"
+    assert check_answer(stored, "de nicht").result == "correct"
+    assert check_answer(stored, "de neef/de nicht").result == "correct"
+    assert check_answer(stored, "de tante").result == "wrong"
+
+
+def test_gender_pair_spacing_around_slash_is_ignored():
+    assert check_answer("el primo/la prima", "el primo / la prima").result == "correct"
+    assert check_answer("el primo / la prima", "el primo/la prima").result == "correct"
+    assert check_answer("el primo / la prima", "la prima").result == "correct"
+
+
+def test_gender_pair_combines_with_synonyms():
+    stored = "el primo/la prima; el pariente"
+    assert check_answer(stored, "la prima").result == "correct"
+    assert check_answer(stored, "el primo").result == "correct"
+    assert check_answer(stored, "el pariente").result == "correct"
+    assert check_answer(stored, "la pariente").result == "wrong"
+
+
+def test_accent_hint_works_within_gender_pair():
+    result = check_answer("el médico/la médica", "la medica")
+    assert result.result == "correct_accent"
+    assert result.matched == "la médica"
+
+
 def test_missing_accent_is_correct_with_hint():
     result = check_answer("cómo", "como")
     assert result.result == "correct_accent"

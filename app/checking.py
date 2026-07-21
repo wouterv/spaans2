@@ -1,6 +1,8 @@
 """Antwoordcontrole: soepel met accenten, streng op ñ.
 
 Opgeslagen antwoorden mogen synoniemen bevatten, gescheiden door ';'.
+Binnen één synoniem scheidt '/' geslachtsvormen (el primo/la prima);
+elke vorm afzonderlijk telt dan ook als goed antwoord.
 Interpunctie zoals ¿? ¡! hoeft niet meegetypt te worden.
 """
 
@@ -23,6 +25,7 @@ class CheckResult:
 def _normalize(text):
     text = unicodedata.normalize("NFC", text).strip().lower()
     text = text.translate(str.maketrans("", "", _PUNCTUATION))
+    text = re.sub(r"\s*/\s*", "/", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -30,9 +33,21 @@ def _fold_accents(text):
     return text.translate(_ACCENT_MAP)
 
 
+def _variants(stored):
+    variants = []
+    for synonym in stored.split(";"):
+        synonym = synonym.strip()
+        if not synonym:
+            continue
+        variants.append(synonym)
+        if "/" in synonym:
+            variants.extend(form.strip() for form in synonym.split("/") if form.strip())
+    return variants
+
+
 def check_answer(stored, answer):
     correct_answer = stored.strip()
-    variants = [v.strip() for v in stored.split(";") if v.strip()]
+    variants = _variants(stored)
     norm_answer = _normalize(answer)
     if norm_answer:
         for variant in variants:
