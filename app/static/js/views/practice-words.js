@@ -1,7 +1,7 @@
 import {api, el, setChildren} from '../api.js';
 import {createQueue, shuffle} from '../queue.js';
 import {LANG, canListen, listen, speak, stopListening} from '../speech.js';
-import {readable, speakable} from '../wordtext.js';
+import {formCount, pickForm, readable, speakable} from '../wordtext.js';
 
 export async function renderPracticeWords(view, chapterId, direction, mode) {
   const words = await api(`/api/practice/items?chapter_id=${chapterId}&type=words`);
@@ -20,6 +20,11 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
   const speechMode = mode === 'spraak';
   const withRecognition = speechMode && canListen();
   const promptOf = (word) => (direction === 'es_nl' ? word.spanish : word.dutch);
+  // Bij een geslachtspaar (el primo/la prima) vragen we één willekeurige vorm
+  const pickFormIndex = (word) => {
+    const count = formCount(promptOf(word));
+    return count > 1 ? Math.floor(Math.random() * count) : null;
+  };
   const promptLang = direction === 'es_nl' ? 'Spaans' : 'Nederlands';
   const answerLang = direction === 'es_nl' ? 'Nederlands' : 'Spaans';
   const promptLangCode = direction === 'es_nl' ? LANG.es : LANG.nl;
@@ -39,16 +44,18 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       ` nog ${total - mastered}`);
   }
 
-  async function checkViaApi(word, answer, alternatives = []) {
+  async function checkViaApi(word, answer, alternatives = [], form = null) {
     return api('/api/practice/check', {
       method: 'POST',
-      body: {item_type: 'word', item_id: word.id, direction, answer, alternatives},
+      body: {item_type: 'word', item_id: word.id, direction, answer, alternatives, form},
     });
   }
 
   /* ── Typen (ook fallback als herkenning ontbreekt) ── */
 
   function renderQuestionTyped(word) {
+    const form = pickFormIndex(word);
+    const prompt = pickForm(promptOf(word), form);
     const input = el('input', {
       type: 'text', autocapitalize: 'off', autocomplete: 'off',
       placeholder: `${answerLang}…`, 'aria-label': `Antwoord in het ${answerLang}`,
@@ -56,7 +63,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
     const feedback = el('div', {});
     let answered = false;
 
-    const form = el('form', {
+    const answerForm = el('form', {
       onsubmit: async (e) => {
         e.preventDefault();
         if (answered) return;
@@ -64,7 +71,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
         if (!answer) return;
         answered = true;
         input.readOnly = true;
-        const result = await checkViaApi(word, answer);
+        const result = await checkViaApi(word, answer, [], form);
         showTypedResult(result, input, feedback);
       },
     }, input);
@@ -73,8 +80,8 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       progressBar(),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, promptLang),
-        el('div', {class: 'practice-word'}, readable(promptOf(word))),
-        form,
+        el('div', {class: 'practice-word'}, readable(prompt)),
+        answerForm,
       ),
       speechMode && !canListen()
         ? el('p', {class: 'muted', style: 'font-size:0.85rem'},
@@ -82,7 +89,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
         : null,
       feedback,
     );
-    if (speechMode) speak(speakable(promptOf(word)), promptLangCode);
+    if (speechMode) speak(speakable(prompt), promptLangCode);
     input.focus();
   }
 
@@ -120,6 +127,8 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
   /* ── Spraak (automodus): luisteren en spreken ── */
 
   function renderQuestionSpeech(word) {
+    const form = pickFormIndex(word);
+    const prompt = pickForm(promptOf(word), form);
     const mic = el('div', {class: 'mic-indicator', 'aria-hidden': 'true'}, '🎙️');
     const heardLine = el('p', {class: 'muted'}, ' ');
     const feedback = el('div', {});
@@ -130,7 +139,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       progressBar(),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, promptLang),
-        el('div', {class: 'practice-word'}, readable(promptOf(word))),
+        el('div', {class: 'practice-word'}, readable(prompt)),
         mic,
         heardLine,
       ),
@@ -145,7 +154,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
       busy = true;
       setChildren(feedback, );
       heardLine.textContent = ' ';
-      await speak(speakable(promptOf(word)), promptLangCode);
+      await speak(speakable(prompt), promptLangCode);
       if (!container.isConnected) return;
       mic.classList.add('luistert');
       const heard = await listen(answerLangCode);
@@ -159,7 +168,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
         return;
       }
       heardLine.textContent = `Gehoord: "${heard[0]}"`;
-      const result = await checkViaApi(word, heard[0], heard.slice(1));
+      const result = await checkViaApi(word, heard[0], heard.slice(1), form);
       if (!container.isConnected) return;
       if (result.result === 'wrong') {
         setChildren(feedback, 
@@ -180,7 +189,7 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
 
     async function giveUp() {
       stopListening();
-      const result = await checkViaApi(word, '');
+      const result = await checkViaApi(word, '', [], form);
       if (!container.isConnected) return;
       setChildren(feedback, 
         el('div', {class: 'feedback fout'},

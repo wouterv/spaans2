@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.checking import check_answer
 from app.deps import get_conn
@@ -18,6 +18,8 @@ class CheckRequest(BaseModel):
     answer: str
     # Extra kandidaten van spraakherkenning; de beste uitkomst telt
     alternatives: list[str] = []
+    # Index van de gevraagde geslachtsvorm (el primo/la prima → 0 of 1)
+    form: int | None = Field(default=None, ge=0)
     tense: str = "presente"
     person: str | None = None
 
@@ -90,7 +92,7 @@ def check(body: CheckRequest, conn=Depends(get_conn)):
     stored = _stored_answer(conn, body)
     candidates = [body.answer, *body.alternatives]
     result = min(
-        (check_answer(stored, candidate) for candidate in candidates),
+        (check_answer(stored, candidate, body.form) for candidate in candidates),
         key=lambda r: _RANK[r.result],
     )
     _update_stats(conn, body, result.result != "wrong")

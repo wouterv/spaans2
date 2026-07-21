@@ -1,8 +1,10 @@
 """Antwoordcontrole: soepel met accenten, streng op ñ.
 
 Opgeslagen antwoorden mogen synoniemen bevatten, gescheiden door ';'.
-Binnen één synoniem scheidt '/' geslachtsvormen (el primo/la prima);
-elke vorm afzonderlijk telt dan ook als goed antwoord.
+Binnen één synoniem scheidt '/' geslachtsvormen (el primo/la prima),
+in dezelfde volgorde aan beide taalkanten. Zonder 'form' telt elke vorm
+als goed antwoord; met 'form' (de index van de gevraagde vorm) telt
+alleen de bijbehorende vorm.
 Interpunctie zoals ¿? ¡! hoeft niet meegetypt te worden.
 """
 
@@ -33,21 +35,25 @@ def _fold_accents(text):
     return text.translate(_ACCENT_MAP)
 
 
-def _variants(stored):
+def _variants(stored, form=None):
     variants = []
     for synonym in stored.split(";"):
         synonym = synonym.strip()
         if not synonym:
             continue
-        variants.append(synonym)
-        if "/" in synonym:
-            variants.extend(form.strip() for form in synonym.split("/") if form.strip())
+        forms = [f.strip() for f in synonym.split("/") if f.strip()]
+        if form is not None and len(forms) > 1:
+            variants.append(forms[min(form, len(forms) - 1)])
+        else:
+            variants.append(synonym)
+            if len(forms) > 1:
+                variants.extend(forms)
     return variants
 
 
-def check_answer(stored, answer):
-    correct_answer = stored.strip()
-    variants = _variants(stored)
+def check_answer(stored, answer, form=None):
+    variants = _variants(stored, form)
+    correct_answer = "; ".join(variants) if form is not None else stored.strip()
     norm_answer = _normalize(answer)
     if norm_answer:
         for variant in variants:

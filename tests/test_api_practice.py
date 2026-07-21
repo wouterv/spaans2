@@ -134,6 +134,40 @@ def test_check_word_gender_pair_both_directions(client, chapter_id):
     assert body["result"] == "correct"
 
 
+def test_check_word_asked_form_requires_matching_answer(client, chapter_id):
+    word_id = client.post(
+        "/api/words",
+        json={
+            "chapter_id": chapter_id,
+            "spanish": "el primo/la prima",
+            "dutch": "de neef/de nicht",
+        },
+    ).json()["id"]
+
+    def check(direction, answer, form):
+        return client.post(
+            "/api/practice/check",
+            json={
+                "item_type": "word",
+                "item_id": word_id,
+                "direction": direction,
+                "answer": answer,
+                "form": form,
+            },
+        ).json()
+
+    body = check("es_nl", "de nicht", 1)
+    assert body["result"] == "correct"
+    assert body["correct_answer"] == "de nicht"
+
+    body = check("es_nl", "de neef", 1)
+    assert body["result"] == "wrong"
+    assert body["correct_answer"] == "de nicht"
+
+    body = check("nl_es", "el primo", 0)
+    assert body["result"] == "correct"
+
+
 def test_check_verb_form(client, verb_id):
     body = client.post(
         "/api/practice/check",

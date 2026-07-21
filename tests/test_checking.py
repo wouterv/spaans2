@@ -63,6 +63,39 @@ def test_accent_hint_works_within_gender_pair():
     assert result.matched == "la médica"
 
 
+def test_form_asks_one_specific_gender_form():
+    stored = "el primo/la prima"
+    assert check_answer(stored, "el primo", form=0).result == "correct"
+    assert check_answer(stored, "la prima", form=1).result == "correct"
+    assert check_answer(stored, "la prima", form=0).result == "wrong"
+    assert check_answer(stored, "el primo/la prima", form=0).result == "wrong"
+
+
+def test_form_correct_answer_shows_only_that_form():
+    assert check_answer("el primo/la prima", "x", form=0).correct_answer == "el primo"
+    assert check_answer("el primo/la prima", "x", form=1).correct_answer == "la prima"
+
+
+def test_form_keeps_synonyms_without_slash():
+    stored = "el primo/la prima; el pariente"
+    assert check_answer(stored, "el pariente", form=1).result == "correct"
+    assert check_answer(stored, "x", form=1).correct_answer == "la prima; el pariente"
+
+
+def test_form_without_pair_in_answer_changes_nothing():
+    assert check_answer("rood", "rood", form=1).result == "correct"
+
+
+def test_form_index_beyond_last_form_takes_last():
+    assert check_answer("el primo/la prima", "la prima", form=5).result == "correct"
+
+
+def test_accent_hint_works_with_form():
+    result = check_answer("el médico/la médica", "la medica", form=1)
+    assert result.result == "correct_accent"
+    assert result.matched == "la médica"
+
+
 def test_missing_accent_is_correct_with_hint():
     result = check_answer("cómo", "como")
     assert result.result == "correct_accent"
