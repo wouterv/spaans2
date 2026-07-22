@@ -27,7 +27,7 @@ Elke fase is zelfstandig af en direct bruikbaar.
 
 Kleine module op basis van de `anthropic`-SDK, met één functie:
 
-- `complete_json(system, messages, schema, images=None) -> dict` — gestructureerde output via `output_config.format` (JSON-schema). Alle vier de toepassingen (oefeninggeneratie, vertaal-beoordeling, scan-extractie, conversatiebeurt) geven gestructureerde data terug, dus één functie volstaat.
+- `complete_json(system, messages, schema) -> dict` — gestructureerde output via `output_config.format` (JSON-schema). Alle vier de toepassingen (oefeninggeneratie, vertaal-beoordeling, scan-extractie, conversatiebeurt) geven gestructureerde data terug, dus één functie volstaat. Afbeeldingen gaan in fase 2 als content-blocks in `messages` mee.
 
 Niets buiten deze module importeert `anthropic`. Adaptieve thinking (default), non-streaming met ruime `max_tokens` (~16000). Prompt-caching op de systeemprompt waar dat loont (conversatie).
 
@@ -52,7 +52,7 @@ Statistieken via bestaande `practice_stats` met `item_type='exercise'`.
 
 ### Genereren
 
-- Knop "Oefeningen genereren" op het hoofdstukscherm → `POST /api/chapters/{id}/exercises/generate`.
+- Knop "Oefeningen genereren" op het hoofdstukscherm → `POST /api/exercises/generate` (met `chapter_id` in de body).
 - Backend verzamelt grammatica-regels + voorbeelden van het hoofdstuk, plus woorden en werkwoorden als context (oefeningen gebruiken bekende woordenschat).
 - Claude genereert een mix van de vier typen als JSON; backend valideert en slaat op.
 - Duurt ± een halve tot hele minuut; frontend toont spinner en daarna het aantal nieuwe oefeningen.
@@ -66,7 +66,7 @@ Nieuwe oefenmodus "Oefeningen" naast woorden/werkwoorden; hergebruik van `queue.
 | invullen | typen | lokaal, soepele check (`checking.py`, accent-hint) |
 | herschrijven | typen | lokaal, soepele check |
 | meerkeuze | knoppen | lokaal |
-| vertalen | typen | eerst lokaal tegen opgeslagen antwoord; alleen bij "fout" beoordeelt Claude (goed/fout + korte uitleg) via `POST /api/exercises/{id}/judge` |
+| vertalen | typen | eerst lokaal tegen opgeslagen antwoord; alleen bij "fout" beoordeelt Claude (goed/fout + korte uitleg) binnen hetzelfde check-endpoint |
 
 Elke oefening heeft een knop "slechte oefening" → `disabled=1`, uit de rotatie.
 

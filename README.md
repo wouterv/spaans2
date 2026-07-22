@@ -21,6 +21,18 @@ node --test tests/js/queue.test.mjs       # JS-tests (oefenwachtrij)
 .venv/bin/uvicorn --factory app.main:create_app --port 8100 --reload
 ```
 
+## Configuratie (LLM)
+
+Voor de LLM-functies (oefeningen genereren, vertaalbeoordeling):
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...   # verplicht voor LLM-functies
+LLM_MODEL=claude-opus-4-8      # optioneel, dit is de default
+```
+
+Zonder key blijft de rest van de app gewoon werken; alleen genereren
+geeft dan een foutmelding en vertaalzinnen vallen terug op de lokale check.
+
 ## Wachtwoord wijzigen
 
 ```bash
