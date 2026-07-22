@@ -294,6 +294,22 @@ class TestGenereren:
         )
         assert response.json() == {"created": 1}
 
+    def test_meerkeuze_options_worden_gestript_opgeslagen(
+        self, client, chapter_met_lesstof, monkeypatch
+    ):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"exercises": [
+            _gegenereerde_oefening(
+                type="meerkeuze", options=[" estás ", "está", ""], answer="estás",
+            ),
+        ]})
+        client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        exercises = client.get(
+            f"/api/exercises?chapter_id={chapter_met_lesstof}"
+        ).json()
+        assert exercises[0]["options"] == ["estás", "está"]
+
     def test_hoofdstuk_zonder_grammatica_is_400(self, client, chapter_id):
         response = client.post(
             "/api/exercises/generate", json={"chapter_id": chapter_id}

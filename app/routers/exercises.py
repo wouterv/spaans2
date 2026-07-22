@@ -74,7 +74,7 @@ def _judge_translation(exercise, answer):
                 ),
             }],
             schema=_JUDGE_SCHEMA,
-            max_tokens=1000,
+            max_tokens=4000,
         )
     except llm.LLMError:
         return None
@@ -252,7 +252,7 @@ def generate_exercises(body: GenerateRequest, conn=Depends(get_conn)):
                 item["instruction"].strip(),
                 item["prompt"].strip(),
                 item["answer"].strip(),
-                json.dumps(item["options"], ensure_ascii=False)
+                json.dumps([o.strip() for o in item["options"] if o.strip()], ensure_ascii=False)
                 if item["type"] == "meerkeuze" else None,
                 item["explanation"].strip(),
             ),

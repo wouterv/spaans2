@@ -31,6 +31,7 @@ def complete_json(system, messages, schema, max_tokens=16000):
             max_tokens=max_tokens,
             system=system,
             messages=messages,
+            thinking={"type": "adaptive"},
             output_config={"format": {"type": "json_schema", "schema": schema}},
         )
     except anthropic.AuthenticationError as exc:

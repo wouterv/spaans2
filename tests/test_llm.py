@@ -42,6 +42,7 @@ def test_complete_json_stuurt_schema_en_model_mee(monkeypatch):
         "format": {"type": "json_schema", "schema": SCHEMA}
     }
     assert calls[0]["system"] == "systeem"
+    assert calls[0]["thinking"] == {"type": "adaptive"}
 
 
 def test_default_model(monkeypatch):
