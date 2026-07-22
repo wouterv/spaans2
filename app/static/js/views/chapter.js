@@ -35,6 +35,25 @@ export async function renderChapterHub(view, chapterId) {
     }),
   );
 
+  const generateStatus = el('p', {class: 'muted', style: 'margin-top:0.5rem'});
+  const generateButton = el('button', {
+    onclick: async () => {
+      generateButton.disabled = true;
+      generateStatus.textContent = 'Bezig met genereren… dit kan een minuut duren.';
+      try {
+        const {created} = await api('/api/exercises/generate', {
+          method: 'POST',
+          body: {chapter_id: chapterId},
+        });
+        generateStatus.textContent = `${created} oefeningen toegevoegd.`;
+        await renderChapterHub(view, chapterId);
+      } catch (err) {
+        generateButton.disabled = false;
+        generateStatus.textContent = `Genereren mislukte: ${err.message}`;
+      }
+    },
+  }, '✨ Genereer oefeningen');
+
   setChildren(view, 
     el('p', {}, el('a', {href: '#/', class: 'muted'}, '← Hoofdstukken')),
     el('h1', {}, chapter.name),
@@ -99,6 +118,22 @@ export async function renderChapterHub(view, chapterId) {
       el('h2', {}, 'Grammatica'),
       el('div', {class: 'row'},
         el('a', {class: 'btn btn-big', href: `#/h/${chapterId}/lezen`}, '📖 Lezen & luisteren')),
+    ),
+    el(
+      'div',
+      {class: 'card'},
+      el('h2', {}, 'Oefeningen'),
+      el('p', {class: 'muted'},
+        chapter.exercise_count
+          ? `${chapter.exercise_count} oefeningen op basis van de lesstof van dit hoofdstuk.`
+          : 'Nog geen oefeningen — genereer ze op basis van de grammatica van dit hoofdstuk.'),
+      el('div', {class: 'row'},
+        chapter.exercise_count
+          ? el('a', {class: 'btn btn-big', href: `#/h/${chapterId}/oefen/oefeningen`}, '⌨️ Oefenen')
+          : null,
+        generateButton,
+      ),
+      generateStatus,
     ),
   );
 }

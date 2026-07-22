@@ -55,3 +55,24 @@ def test_delete_chapter_cascades(client):
 
 def test_empty_name_is_rejected(client):
     assert client.post("/api/chapters", json={"name": ""}).status_code == 422
+
+
+def test_chapter_telt_alleen_actieve_oefeningen(client, app_instance):
+    from app import db
+
+    chapter_id = client.post("/api/chapters", json={"name": "H1"}).json()["id"]
+    conn = db.connect(app_instance.state.db_path)
+    try:
+        for _ in range(2):
+            cursor = conn.execute(
+                "INSERT INTO exercises (chapter_id, type, instruction, prompt, "
+                "answer) VALUES (?, 'invullen', 'Vul in', 'Yo ___.', 'soy')",
+                (chapter_id,),
+            )
+        conn.commit()
+        weggestemd = cursor.lastrowid
+    finally:
+        conn.close()
+    client.post(f"/api/exercises/{weggestemd}/disable")
+    chapter = client.get("/api/chapters").json()[0]
+    assert chapter["exercise_count"] == 1
