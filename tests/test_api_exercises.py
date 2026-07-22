@@ -58,3 +58,32 @@ class TestMigratie:
         finally:
             conn.close()
         assert count == 0
+
+
+class TestLijst:
+    def test_lijst_geeft_oefeningen_met_geparste_options(
+        self, client, app_instance, chapter_id
+    ):
+        _insert_exercise(
+            app_instance, chapter_id,
+            type="meerkeuze", options='["soy", "eres", "es"]',
+        )
+        exercises = client.get(f"/api/exercises?chapter_id={chapter_id}").json()
+        assert len(exercises) == 1
+        assert exercises[0]["options"] == ["soy", "eres", "es"]
+        assert exercises[0]["prompt"] == "Yo ___ de Países Bajos."
+
+    def test_options_null_zonder_meerkeuze(self, client, app_instance, chapter_id):
+        _insert_exercise(app_instance, chapter_id)
+        exercises = client.get(f"/api/exercises?chapter_id={chapter_id}").json()
+        assert exercises[0]["options"] is None
+
+    def test_weggestemde_oefening_staat_niet_in_de_lijst(
+        self, client, app_instance, chapter_id
+    ):
+        exercise_id = _insert_exercise(app_instance, chapter_id)
+        assert client.post(f"/api/exercises/{exercise_id}/disable").status_code == 204
+        assert client.get(f"/api/exercises?chapter_id={chapter_id}").json() == []
+
+    def test_wegstemmen_onbekende_oefening_is_404(self, client):
+        assert client.post("/api/exercises/999/disable").status_code == 404
