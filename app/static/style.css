@@ -198,8 +198,8 @@ table.entry td.es { font-family: var(--serif); }
 .feedback.fout { background: var(--rojo-zacht); color: var(--rojo); }
 .feedback .answer { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; }
 
-input.check-goed { border-color: var(--verde); background: var(--verde-zacht); }
-input.check-fout { border-color: var(--rojo); background: var(--rojo-zacht); }
+input.check-goed, button.check-goed { border-color: var(--verde); background: var(--verde-zacht); }
+input.check-fout, button.check-fout { border-color: var(--rojo); background: var(--rojo-zacht); }
 input.luistert { border-color: var(--sol); box-shadow: 0 0 0 2px var(--sol-zacht); }
 
 /* ── Automodus: grote bedienbare vlakken ─ */
