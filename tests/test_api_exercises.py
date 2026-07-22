@@ -220,3 +220,114 @@ class TestVertalenMetLLM:
             f"/api/exercises/{exercise_id}/check", json={"answer": ""}
         ).json()
         assert result["result"] == "wrong"
+
+
+@pytest.fixture
+def chapter_met_lesstof(client, chapter_id):
+    client.post("/api/grammar", json={
+        "chapter_id": chapter_id,
+        "title": "Ser en estar",
+        "explanation": "Ser voor blijvend, estar voor tijdelijk.",
+        "examples": [{"spanish": "Estoy cansado", "dutch": "Ik ben moe"}],
+    })
+    client.post("/api/words", json={
+        "chapter_id": chapter_id, "spanish": "cansado", "dutch": "moe",
+    })
+    return chapter_id
+
+
+def _gegenereerde_oefening(**overrides):
+    exercise = {
+        "type": "invullen",
+        "instruction": "Vul de juiste vorm van 'estar' in",
+        "prompt": "Yo ___ cansado.",
+        "answer": "estoy",
+        "options": [],
+        "explanation": "Tijdelijke toestand: estar.",
+    }
+    exercise.update(overrides)
+    return exercise
+
+
+class TestGenereren:
+    def test_genereert_en_slaat_op(
+        self, client, app_instance, chapter_met_lesstof, monkeypatch
+    ):
+        prompts = []
+
+        def fake(**kwargs):
+            prompts.append(kwargs)
+            return {"exercises": [
+                _gegenereerde_oefening(),
+                _gegenereerde_oefening(
+                    type="meerkeuze", options=["estoy", "soy"], answer="estoy",
+                ),
+            ]}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        assert response.status_code == 200
+        assert response.json() == {"created": 2}
+        exercises = client.get(
+            f"/api/exercises?chapter_id={chapter_met_lesstof}"
+        ).json()
+        assert len(exercises) == 2
+        assert exercises[1]["options"] == ["estoy", "soy"]
+        # De lesstof staat in de prompt naar de LLM
+        content = prompts[0]["messages"][0]["content"]
+        assert "Ser en estar" in content
+        assert "cansado" in content
+
+    def test_ongeldige_meerkeuze_wordt_overgeslagen(
+        self, client, chapter_met_lesstof, monkeypatch
+    ):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"exercises": [
+            _gegenereerde_oefening(),
+            _gegenereerde_oefening(
+                type="meerkeuze", options=["soy"], answer="estoy",
+            ),
+        ]})
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        assert response.json() == {"created": 1}
+
+    def test_hoofdstuk_zonder_grammatica_is_400(self, client, chapter_id):
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_id}
+        )
+        assert response.status_code == 400
+
+    def test_onbekend_hoofdstuk_is_404(self, client):
+        assert (
+            client.post(
+                "/api/exercises/generate", json={"chapter_id": 999}
+            ).status_code
+            == 404
+        )
+
+    def test_llm_storing_is_503_met_nederlandse_melding(
+        self, client, chapter_met_lesstof, monkeypatch
+    ):
+        def storing(**kwargs):
+            raise llm.LLMError("Geen verbinding met de taaldienst")
+
+        monkeypatch.setattr(llm, "complete_json", storing)
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Geen verbinding met de taaldienst"
+
+    def test_geen_bruikbare_oefeningen_is_502(
+        self, client, chapter_met_lesstof, monkeypatch
+    ):
+        monkeypatch.setattr(
+            llm, "complete_json", lambda **kwargs: {"exercises": []}
+        )
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        assert response.status_code == 502
