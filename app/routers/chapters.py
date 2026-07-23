@@ -18,7 +18,8 @@ def list_chapters(conn=Depends(get_conn)):
             (SELECT COUNT(*) FROM words w WHERE w.chapter_id = c.id) AS word_count,
             (SELECT COUNT(*) FROM verbs v WHERE v.chapter_id = c.id) AS verb_count,
             (SELECT COUNT(*) FROM grammar_rules g WHERE g.chapter_id = c.id) AS grammar_count,
-            (SELECT COUNT(*) FROM exercises e WHERE e.chapter_id = c.id AND e.disabled = 0) AS exercise_count
+            (SELECT COUNT(*) FROM exercises e WHERE e.chapter_id = c.id AND e.disabled = 0) AS exercise_count,
+            (SELECT COUNT(*) FROM example_exercises x WHERE x.chapter_id = c.id) AS example_count
         FROM chapters c
         ORDER BY c.position, c.id
         """

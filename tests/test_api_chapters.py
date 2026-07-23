@@ -76,3 +76,12 @@ def test_chapter_telt_alleen_actieve_oefeningen(client, app_instance):
     client.post(f"/api/exercises/{weggestemd}/disable")
     chapter = client.get("/api/chapters").json()[0]
     assert chapter["exercise_count"] == 1
+
+
+def test_chapter_telt_voorbeeldoefeningen(client):
+    chapter_id = client.post("/api/chapters", json={"name": "H1"}).json()["id"]
+    client.post("/api/examples", json={
+        "chapter_id": chapter_id, "text": "Completa: ___",
+    })
+    chapter = client.get("/api/chapters").json()[0]
+    assert chapter["example_count"] == 1

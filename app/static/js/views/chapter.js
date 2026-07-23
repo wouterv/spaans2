@@ -71,6 +71,9 @@ export async function renderChapterHub(view, chapterId) {
       el('li', {},
         el('a', {class: 'grow', href: `#/h/${chapterId}/grammatica`}, 'Grammatica'),
         el('span', {class: 'counts'}, String(chapter.grammar_count))),
+      el('li', {},
+        el('a', {class: 'grow', href: `#/h/${chapterId}/voorbeelden`}, 'Voorbeeldoefeningen'),
+        el('span', {class: 'counts'}, String(chapter.example_count))),
     ),
 
     el('div', {class: 'eyebrow'}, 'Oefenen'),

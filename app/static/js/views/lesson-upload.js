@@ -63,10 +63,10 @@ export async function renderLessonUpload(view, chapterId) {
       try {
         const images = [];
         for (const file of fileInput.files) images.push(await fileToImagePayload(file));
-        const {rules} = await api(`/api/chapters/${chapterId}/lessons/extract`, {
+        const {rules, examples} = await api(`/api/chapters/${chapterId}/lessons/extract`, {
           method: 'POST', body: {images},
         });
-        renderReviewStep(rules);
+        renderReviewStep(rules, examples);
       } catch (err) {
         status.textContent = `Lezen mislukte: ${err.message}`;
         readButton.disabled = false;
@@ -87,7 +87,7 @@ export async function renderLessonUpload(view, chapterId) {
 
   /* ── Stap 2: nakijken, bewerken en opslaan ── */
 
-  function renderReviewStep(rules) {
+  function renderReviewStep(rules, examples) {
     const editorsWrap = el('div', {});
     const status = el('p', {class: 'muted'});
 
@@ -146,44 +146,83 @@ export async function renderLessonUpload(view, chapterId) {
       return card;
     }
 
+    function exampleEditor(text) {
+      const textInput = el('textarea', {rows: '3', 'aria-label': 'Opgave'});
+      textInput.value = text;
+      const card = el('div', {class: 'card', 'data-example': ''},
+        el('div', {class: 'row'},
+          el('label', {class: 'grow'}, 'Opgave'),
+          el('button', {
+            class: 'icon-btn fixed', type: 'button', title: 'Voorbeeld verwijderen',
+            onclick: () => card.remove(),
+          }, '🗑️'),
+        ),
+        textInput,
+      );
+      card.readExample = () => textInput.value.trim();
+      return card;
+    }
+
+    const examplesEditorsWrap = el('div', {}, ...examples.map(exampleEditor));
+
     setChildren(editorsWrap, ...rules.map(ruleEditor));
 
     const saveButton = el('button', {
       class: 'btn-primary btn-big',
       onclick: async () => {
-        const cards = [...editorsWrap.querySelectorAll('[data-rule]')];
-        const payloads = cards.map((card) => card.readRule());
-        if (!payloads.some((rule) => rule.title)) {
+        const ruleCards = [...editorsWrap.querySelectorAll('[data-rule]')];
+        const rulePayloads = ruleCards.map((card) => card.readRule());
+        const exampleCards = [...examplesEditorsWrap.querySelectorAll('[data-example]')];
+        const exampleTexts = exampleCards.map((card) => card.readExample());
+        if (!rulePayloads.some((rule) => rule.title) && !exampleTexts.some(Boolean)) {
           status.textContent = 'Er is niets om op te slaan.';
           return;
         }
         saveButton.disabled = true;
         againButton.disabled = true;
         try {
-          for (const [i, card] of cards.entries()) {
-            if (payloads[i].title) {
+          for (const [i, card] of ruleCards.entries()) {
+            if (rulePayloads[i].title) {
               await api('/api/grammar', {
-                method: 'POST', body: {chapter_id: chapterId, ...payloads[i]},
+                method: 'POST', body: {chapter_id: chapterId, ...rulePayloads[i]},
               });
               card.remove();
             }
           }
-          location.hash = `#/h/${chapterId}/grammatica`;
+          for (const [i, card] of exampleCards.entries()) {
+            if (exampleTexts[i]) {
+              await api('/api/examples', {
+                method: 'POST', body: {chapter_id: chapterId, text: exampleTexts[i]},
+              });
+              card.remove();
+            }
+          }
+          location.hash = `#/h/${chapterId}`;
         } catch (err) {
           saveButton.disabled = false;
           againButton.disabled = false;
           status.textContent =
-            `Opslaan mislukte: ${err.message}. De al opgeslagen regels zijn uit de lijst gehaald — controleer de rest en probeer opnieuw.`;
+            `Opslaan mislukte: ${err.message}. Het al opgeslagen deel is uit de lijst gehaald — controleer de rest en probeer opnieuw.`;
         }
       },
     }, '💾 Alles opslaan');
     const againButton = el('button', {class: 'btn-ghost', onclick: renderUploadStep}, '📷 Opnieuw');
 
+    const teller = [
+      rules.length ? `${rules.length} regel${rules.length === 1 ? '' : 's'}` : null,
+      examples.length ? `${examples.length} voorbeeldoefening${examples.length === 1 ? '' : 'en'}` : null,
+    ].filter(Boolean).join(' en ');
+
     setChildren(container,
-      el('p', {class: 'muted'},
-        `${rules.length} regel${rules.length === 1 ? '' : 's'} gelezen — kijk na, pas aan en sla op.`),
+      el('p', {class: 'muted'}, `${teller} gelezen — kijk na, pas aan en sla op.`),
       editorsWrap,
+      examples.length ? el('div', {class: 'eyebrow'}, 'Voorbeeldoefeningen') : null,
+      examplesEditorsWrap,
       el('div', {class: 'row', style: 'margin-top:0.75rem'},
+        el('button', {
+          class: 'btn-ghost fixed', type: 'button',
+          onclick: () => examplesEditorsWrap.append(exampleEditor('')),
+        }, '+ voorbeeldoefening'),
         saveButton,
         againButton,
       ),
