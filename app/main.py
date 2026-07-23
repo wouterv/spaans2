@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from app import auth, db
 from app.routers import (
-    chapters, conversation, exercises, grammar, lessons, practice, verbs, words,
+    chapters, conversation, examples, exercises, grammar, lessons, practice, verbs, words,
 )
 
 DEFAULT_DB = Path(__file__).parent.parent / "data" / "spaans.db"
@@ -60,6 +60,7 @@ def create_app(db_path=None, password_hash=None, secret_key=None):
     app.include_router(exercises.router)
     app.include_router(lessons.router)
     app.include_router(conversation.router)
+    app.include_router(examples.router)
 
     @app.get("/api/health")
     def health():
