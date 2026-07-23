@@ -1,4 +1,5 @@
 import {api, el, setChildren} from '../api.js';
+import {clearConcept, loadConcept, saveConcept} from '../concept.js';
 
 const MAX_DIM = 2000;
 
@@ -20,6 +21,9 @@ export async function renderLessonUpload(view, chapterId) {
   if (!chapter) { location.hash = '#/'; return; }
 
   const container = el('div', {});
+  // Werk-in-uitvoering overleeft een refresh: het uitgelezen resultaat en
+  // elke bewerking staan in localStorage tot alles is opgeslagen
+  const conceptKey = `spaans-les-concept-${chapterId}`;
   setChildren(view,
     el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, `← ${chapter.name}`)),
     el('h1', {}, 'Les uploaden'),
@@ -79,6 +83,7 @@ export async function renderLessonUpload(view, chapterId) {
           method: 'POST', body: {images: cachedImages},
         });
         clearInterval(ticker);
+        saveConcept(conceptKey, {rules, examples});
         renderReviewStep(rules, examples);
       } catch (err) {
         clearInterval(ticker);
@@ -117,7 +122,32 @@ export async function renderLessonUpload(view, chapterId) {
       await readLesson(1);
     });
 
+    const concept = loadConcept(conceptKey);
+    const conceptBanner = concept
+      ? el('div', {class: 'card'},
+          el('p', {},
+            `📝 Er staat nog een niet-opgeslagen les van ${new Date(concept.at)
+              .toLocaleString('nl-NL', {weekday: 'long', hour: '2-digit', minute: '2-digit'})}.`),
+          el('div', {class: 'row'},
+            el('button', {
+              class: 'btn-primary',
+              onclick: () => renderReviewStep(concept.data.rules, concept.data.examples),
+            }, '✏️ Verdergaan met nakijken'),
+            el('button', {
+              class: 'btn-ghost',
+              onclick: () => {
+                if (confirm('De niet-opgeslagen les weggooien?')) {
+                  clearConcept(conceptKey);
+                  renderUploadStep();
+                }
+              },
+            }, '🗑️ Weggooien'),
+          ),
+        )
+      : null;
+
     setChildren(container,
+      conceptBanner,
       el('div', {class: 'card'},
         el('p', {class: 'muted'},
           'Kies één of meer foto\'s of scans van de les. Na het uitlezen kun je alles nakijken en aanpassen voordat het wordt opgeslagen.'),
@@ -210,6 +240,19 @@ export async function renderLessonUpload(view, chapterId) {
 
     setChildren(editorsWrap, ...rules.map(ruleEditor));
 
+    // Elke bewerking meteen in het concept bewaren (overleeft refresh);
+    // klikken kunnen kaarten of rijen verwijderen, dus even de DOM af laten ronden
+    function persist() {
+      saveConcept(conceptKey, {
+        rules: [...editorsWrap.querySelectorAll('[data-rule]')].map((c) => c.readRule()),
+        examples: [...examplesEditorsWrap.querySelectorAll('[data-example]')].map((c) => c.readExample()),
+      });
+    }
+    editorsWrap.addEventListener('input', persist);
+    examplesEditorsWrap.addEventListener('input', persist);
+    editorsWrap.addEventListener('click', () => setTimeout(persist, 0));
+    examplesEditorsWrap.addEventListener('click', () => setTimeout(persist, 0));
+
     const saveButton = el('button', {
       class: 'btn-primary btn-big',
       onclick: async () => {
@@ -240,8 +283,10 @@ export async function renderLessonUpload(view, chapterId) {
               card.remove();
             }
           }
+          clearConcept(conceptKey);
           location.hash = `#/h/${chapterId}`;
         } catch (err) {
+          persist();  // concept = alleen wat nog niet is opgeslagen
           saveButton.disabled = false;
           againButton.disabled = false;
           status.textContent =
@@ -264,7 +309,10 @@ export async function renderLessonUpload(view, chapterId) {
       el('div', {class: 'row', style: 'margin-top:0.75rem'},
         el('button', {
           class: 'btn-ghost fixed', type: 'button',
-          onclick: () => examplesEditorsWrap.append(exampleEditor('')),
+          onclick: () => {
+            examplesEditorsWrap.append(exampleEditor(''));
+            persist();
+          },
         }, '+ voorbeeldoefening'),
         saveButton,
         againButton,
