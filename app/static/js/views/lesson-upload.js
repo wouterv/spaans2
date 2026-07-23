@@ -37,8 +37,11 @@ export async function renderLessonUpload(view, chapterId) {
     const status = el('p', {class: 'muted'});
     const readButton = el('button', {class: 'btn-primary btn-big', disabled: ''},
       '📖 Lees les');
+    // Verkleinde foto's bewaren we, zodat een nieuwe poging direct kan versturen
+    let cachedImages = null;
 
     fileInput.addEventListener('change', () => {
+      cachedImages = null;
       setChildren(preview, ...[...fileInput.files].map((file) => {
         const img = el('img', {
           src: URL.createObjectURL(file), alt: file.name,
@@ -56,22 +59,62 @@ export async function renderLessonUpload(view, chapterId) {
       }
     });
 
-    readButton.addEventListener('click', async () => {
-      readButton.disabled = true;
-      fileInput.disabled = true;
-      status.textContent = 'Scans worden gelezen… dit kan een minuut duren.';
+    function isNetworkError(err) {
+      // Firefox: "NetworkError when attempting…", Chrome: "Failed to fetch",
+      // Safari: "Load failed" — allemaal een TypeError uit fetch
+      return err instanceof TypeError
+        || /NetworkError|Failed to fetch|Load failed/i.test(err.message);
+    }
+
+    async function readLesson(attempt) {
+      const start = Date.now();
+      const ticker = setInterval(() => {
+        const seconds = Math.round((Date.now() - start) / 1000);
+        status.textContent = `Claude leest de scans… ${seconds}s`
+          + (attempt > 1 ? ' (tweede poging)' : ' — dit kan een minuut duren.');
+      }, 1000);
+      status.textContent = 'Claude leest de scans… dit kan een minuut duren.';
       try {
-        const images = [];
-        for (const file of fileInput.files) images.push(await fileToImagePayload(file));
         const {rules, examples} = await api(`/api/chapters/${chapterId}/lessons/extract`, {
-          method: 'POST', body: {images},
+          method: 'POST', body: {images: cachedImages},
         });
+        clearInterval(ticker);
         renderReviewStep(rules, examples);
       } catch (err) {
-        status.textContent = `Lezen mislukte: ${err.message}`;
+        clearInterval(ticker);
+        if (isNetworkError(err) && attempt === 1) {
+          status.textContent = 'De verbinding haperde — ik probeer het direct nog een keer…';
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          return readLesson(2);
+        }
+        status.textContent = isNetworkError(err)
+          ? 'Netwerkfout — je foto\'s staan nog klaar. Controleer je verbinding en klik nogmaals op "Lees les".'
+          : `Lezen mislukte: ${err.message}`;
         readButton.disabled = false;
         fileInput.disabled = false;
       }
+    }
+
+    readButton.addEventListener('click', async () => {
+      readButton.disabled = true;
+      fileInput.disabled = true;
+      try {
+        if (!cachedImages) {
+          const files = [...fileInput.files];
+          const images = [];
+          for (const [i, file] of files.entries()) {
+            status.textContent = `Foto ${i + 1} van ${files.length} verkleinen…`;
+            images.push(await fileToImagePayload(file));
+          }
+          cachedImages = images;
+        }
+      } catch (err) {
+        status.textContent = `Foto verwerken mislukte: ${err.message}`;
+        readButton.disabled = false;
+        fileInput.disabled = false;
+        return;
+      }
+      await readLesson(1);
     });
 
     setChildren(container,
