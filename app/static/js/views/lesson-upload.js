@@ -47,7 +47,13 @@ export async function renderLessonUpload(view, chapterId) {
         img.addEventListener('load', () => URL.revokeObjectURL(img.src));
         return img;
       }));
-      readButton.disabled = fileInput.files.length === 0;
+      if (fileInput.files.length > 10) {
+        status.textContent = 'Kies maximaal 10 afbeeldingen tegelijk.';
+        readButton.disabled = true;
+      } else {
+        status.textContent = '';
+        readButton.disabled = fileInput.files.length === 0;
+      }
     });
 
     readButton.addEventListener('click', async () => {
@@ -152,23 +158,26 @@ export async function renderLessonUpload(view, chapterId) {
           return;
         }
         saveButton.disabled = true;
+        againButton.disabled = true;
         try {
           for (const [i, card] of cards.entries()) {
             if (payloads[i].title) {
               await api('/api/grammar', {
                 method: 'POST', body: {chapter_id: chapterId, ...payloads[i]},
               });
+              card.remove();
             }
-            card.remove();
           }
           location.hash = `#/h/${chapterId}/grammatica`;
         } catch (err) {
           saveButton.disabled = false;
+          againButton.disabled = false;
           status.textContent =
             `Opslaan mislukte: ${err.message}. De al opgeslagen regels zijn uit de lijst gehaald — controleer de rest en probeer opnieuw.`;
         }
       },
     }, '💾 Alles opslaan');
+    const againButton = el('button', {class: 'btn-ghost', onclick: renderUploadStep}, '📷 Opnieuw');
 
     setChildren(container,
       el('p', {class: 'muted'},
@@ -176,7 +185,7 @@ export async function renderLessonUpload(view, chapterId) {
       editorsWrap,
       el('div', {class: 'row', style: 'margin-top:0.75rem'},
         saveButton,
-        el('button', {class: 'btn-ghost', onclick: renderUploadStep}, '📷 Opnieuw'),
+        againButton,
       ),
       status,
     );

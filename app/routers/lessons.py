@@ -16,7 +16,7 @@ from app.deps import chapter_or_404, get_conn
 
 router = APIRouter(prefix="/api/chapters")
 
-MAX_IMAGE_BYTES = 8_000_000
+MAX_IMAGE_BYTES = 5_000_000
 
 _RULES_SCHEMA = {
     "type": "object",
@@ -80,7 +80,7 @@ def _validate_images(images):
         if len(raw) > MAX_IMAGE_BYTES:
             raise HTTPException(
                 status_code=400,
-                detail="Afbeelding is te groot (max 8 MB na verkleinen)",
+                detail="Afbeelding is te groot (max 5 MB na verkleinen)",
             )
 
 
