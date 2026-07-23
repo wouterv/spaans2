@@ -23,8 +23,18 @@ def _client():
     return anthropic.Anthropic()
 
 
-def complete_json(system, messages, schema, max_tokens=16000):
-    """Vraag Claude om JSON volgens `schema` en geef die geparst terug."""
+def complete_json(system, messages, schema, max_tokens=16000, cache_system=False):
+    """Vraag Claude om JSON volgens `schema` en geef die geparst terug.
+
+    Met cache_system=True wordt de systeemprompt gecachet (prompt-caching):
+    goedkoper wanneer dezelfde prompt per beurt opnieuw meegaat (conversatie).
+    """
+    if cache_system:
+        system = [{
+            "type": "text",
+            "text": system,
+            "cache_control": {"type": "ephemeral"},
+        }]
     try:
         response = _client().messages.create(
             model=os.environ.get("LLM_MODEL", DEFAULT_MODEL),

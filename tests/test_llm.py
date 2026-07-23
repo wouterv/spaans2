@@ -83,3 +83,21 @@ def test_api_fout_geeft_nederlandse_llmerror(monkeypatch):
     with pytest.raises(llm.LLMError) as excinfo:
         llm.complete_json("s", [{"role": "user", "content": "x"}], SCHEMA)
     assert "verbinding" in str(excinfo.value).lower()
+
+
+def test_cache_system_stuurt_cache_control_mee(monkeypatch):
+    calls = _fake_client(monkeypatch)
+    llm.complete_json(
+        "systeem", [{"role": "user", "content": "hoi"}], SCHEMA, cache_system=True
+    )
+    assert calls[0]["system"] == [{
+        "type": "text",
+        "text": "systeem",
+        "cache_control": {"type": "ephemeral"},
+    }]
+
+
+def test_zonder_cache_system_blijft_system_een_string(monkeypatch):
+    calls = _fake_client(monkeypatch)
+    llm.complete_json("systeem", [{"role": "user", "content": "hoi"}], SCHEMA)
+    assert calls[0]["system"] == "systeem"

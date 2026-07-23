@@ -6,9 +6,8 @@ from pydantic import BaseModel
 from app import llm
 from app.checking import CheckResult, check_answer
 from app.deps import chapter_or_404, get_conn
+from app.lesstof import lesson_context
 from app.routers.grammar import list_rules
-from app.routers.verbs import list_verbs
-from app.routers.words import list_words
 
 router = APIRouter(prefix="/api/exercises")
 
@@ -194,26 +193,6 @@ class GenerateRequest(BaseModel):
     chapter_id: int
 
 
-def _lesson_context(conn, chapter_id):
-    parts = ["Grammaticaregels:"]
-    for rule in list_rules(chapter_id, conn):
-        parts.append(f"## {rule['title']}\n{rule['explanation']}")
-        parts.extend(
-            f"- {ex['spanish']} — {ex['dutch']}" for ex in rule["examples"]
-        )
-    words = list_words(chapter_id, conn)
-    if words:
-        parts.append("\nWoordenschat:")
-        parts.extend(f"- {w['spanish']} — {w['dutch']}" for w in words)
-    verbs = list_verbs(chapter_id, conn)
-    if verbs:
-        parts.append("\nWerkwoorden:")
-        parts.extend(
-            f"- {v['infinitive_es']} — {v['translation_nl']}" for v in verbs
-        )
-    return "\n".join(parts)
-
-
 def _valid_exercise(item):
     if not item["prompt"].strip() or not item["answer"].strip():
         return False
@@ -231,7 +210,7 @@ def generate_exercises(body: GenerateRequest, conn=Depends(get_conn)):
             status_code=400,
             detail="Dit hoofdstuk heeft nog geen grammatica om oefeningen op te baseren",
         )
-    context = _lesson_context(conn, body.chapter_id)
+    context = lesson_context(conn, body.chapter_id)
     try:
         data = llm.complete_json(
             system=_GENERATE_SYSTEM,
