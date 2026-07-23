@@ -424,3 +424,24 @@ class TestGeneratieprompt:
             "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
         )
         assert "afleidbaar" in prompts[0]["system"]
+
+    def test_alleen_voorbeeldoefeningen_is_genoeg(
+        self, client, chapter_id, monkeypatch
+    ):
+        client.post("/api/examples", json={
+            "chapter_id": chapter_id, "text": "Completa: Yo ___ (ser) de Holanda.",
+        })
+        prompts = []
+
+        def fake(**kwargs):
+            prompts.append(kwargs)
+            return {"exercises": [_gegenereerde_oefening()]}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_id}
+        )
+        assert response.status_code == 200
+        # De voorbeelden zitten in de prompt en de stijl-instructie in de systeemprompt
+        assert "Completa: Yo ___" in prompts[0]["messages"][0]["content"]
+        assert "kopieer ze niet letterlijk" in prompts[0]["system"]

@@ -53,3 +53,17 @@ class TestLessonContext:
         context = _context(app_instance, chapter_id)
         assert "Grammaticaregels:" not in context
         assert "Woordenschat:" in context
+
+    def test_voorbeeldoefeningen_sectie(self, client, app_instance, chapter_id):
+        client.post("/api/examples", json={
+            "chapter_id": chapter_id, "text": "Completa: Yo ___ (ser) de Holanda.",
+        })
+        context = _context(app_instance, chapter_id)
+        assert "Voorbeeldoefeningen uit het boek:" in context
+        assert "- Completa: Yo ___ (ser) de Holanda." in context
+
+    def test_geen_voorbeelden_geen_sectie(self, client, app_instance, chapter_id):
+        client.post("/api/words", json={
+            "chapter_id": chapter_id, "spanish": "sol", "dutch": "zon",
+        })
+        assert "Voorbeeldoefeningen" not in _context(app_instance, chapter_id)

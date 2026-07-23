@@ -7,6 +7,7 @@ from app import llm
 from app.checking import CheckResult, check_answer
 from app.deps import chapter_or_404, get_conn
 from app.lesstof import lesson_context
+from app.routers.examples import list_examples
 from app.routers.grammar import list_rules
 
 router = APIRouter(prefix="/api/exercises")
@@ -186,6 +187,9 @@ _GENERATE_SYSTEM = (
     "op beginnersniveau. Het antwoord moet volledig afleidbaar zijn uit de "
     "opdracht en de opgave: introduceer in het antwoord geen namen, woorden of "
     "feiten die de leerling niet uit de opgave kan weten."
+    " Staan er voorbeeldoefeningen uit het boek in de lesstof: maak "
+    "oefeningen in dezelfde stijl en over dezelfde stof, maar kopieer ze "
+    "niet letterlijk."
 )
 
 
@@ -205,10 +209,13 @@ def _valid_exercise(item):
 @router.post("/generate")
 def generate_exercises(body: GenerateRequest, conn=Depends(get_conn)):
     chapter_or_404(conn, body.chapter_id)
-    if not list_rules(body.chapter_id, conn):
+    if not list_rules(body.chapter_id, conn) and not list_examples(
+        body.chapter_id, conn
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Dit hoofdstuk heeft nog geen grammatica om oefeningen op te baseren",
+            detail="Dit hoofdstuk heeft nog geen grammatica of "
+            "voorbeeldoefeningen om oefeningen op te baseren",
         )
     context = lesson_context(conn, body.chapter_id)
     try:

@@ -1,5 +1,6 @@
 """Lesstof van een hoofdstuk als platte tekst, voor LLM-prompts."""
 
+from app.routers.examples import list_examples
 from app.routers.grammar import list_rules
 from app.routers.verbs import list_verbs
 from app.routers.words import list_words
@@ -26,4 +27,8 @@ def lesson_context(conn, chapter_id):
         parts.extend(
             f"- {v['infinitive_es']} — {v['translation_nl']}" for v in verbs
         )
+    examples = list_examples(chapter_id, conn)
+    if examples:
+        parts.append("\nVoorbeeldoefeningen uit het boek:")
+        parts.extend(f"- {ex['text']}" for ex in examples)
     return "\n".join(parts)
