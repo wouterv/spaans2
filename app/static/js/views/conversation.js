@@ -1,6 +1,13 @@
 import {api, el, setChildren} from '../api.js';
 import {LANG, canListen, listen, speak, stopListening} from '../speech.js';
 
+// Voorlezen van antwoorden is uitschakelbaar; de keuze wordt onthouden
+const VOORLEES_KEY = 'spaans-gesprek-voorlezen';
+
+function voorlezenAan() {
+  return localStorage.getItem(VOORLEES_KEY) !== 'uit';
+}
+
 export async function renderConversation(view, chapterId) {
   const chapters = await api('/api/chapters');
   const chapter = chapters.find((c) => c.id === chapterId);
@@ -25,10 +32,28 @@ export async function renderConversation(view, chapterId) {
     onsubmit: (e) => { e.preventDefault(); sendTurn(); },
   }, input, micButton, sendButton);
 
+  const speakToggle = el('button', {
+    type: 'button', class: 'btn-ghost',
+    onclick: () => {
+      localStorage.setItem(VOORLEES_KEY, voorlezenAan() ? 'uit' : 'aan');
+      if (!voorlezenAan()) window.speechSynthesis?.cancel();
+      updateSpeakToggle();
+    },
+  });
+
+  function updateSpeakToggle() {
+    speakToggle.textContent = voorlezenAan() ? '🔊 Voorlezen aan' : '🔇 Voorlezen uit';
+  }
+  updateSpeakToggle();
+
   setChildren(view,
     el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, `← ${chapter.name}`)),
     el('h1', {}, 'Gesprek'),
-    el('p', {class: 'muted'}, 'Praat in het Spaans over de lesstof van dit hoofdstuk. Correcties verschijnen onder je bericht.'),
+    el('div', {class: 'row'},
+      el('p', {class: 'muted', style: 'flex:1; margin:0'},
+        'Praat in het Spaans over de lesstof van dit hoofdstuk. Correcties verschijnen onder je bericht.'),
+      speakToggle,
+    ),
     chat, inputRow, status,
   );
 
@@ -63,7 +88,7 @@ export async function renderConversation(view, chapterId) {
       status.textContent = '';
       setBusy(false);
       input.focus();
-      await speak(reply, LANG.es);
+      if (voorlezenAan()) await speak(reply, LANG.es);
     } catch (err) {
       waiting.remove();
       status.textContent = `Er ging iets mis: ${err.message}`;
