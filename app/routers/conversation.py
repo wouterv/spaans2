@@ -15,15 +15,32 @@ from app.lesstof import lesson_context
 
 router = APIRouter(prefix="/api/chapters")
 
+# reply staat bewust vóór correction: het model vult velden in schema-volgorde
+# in, en een onbesliste correctie-afweging lekte anders als redeneertekst in
+# het eerste veld. Eerst antwoorden, dan pas het (besliste) oordeel.
 _TURN_SCHEMA = {
     "type": "object",
     "properties": {
-        "correction": {"type": "string"},
-        "reply": {"type": "string"},
+        "reply": {
+            "type": "string",
+            "description": "Jouw Spaanse antwoord dat het gesprek voortzet.",
+        },
+        "correction": {
+            "type": "string",
+            "description": (
+                "Eén korte Nederlandse verbetering van een echte fout in het "
+                "laatste bericht van de leerling, of een lege string. Nooit "
+                "overwegingen, Engels of meta-tekst."
+            ),
+        },
     },
-    "required": ["correction", "reply"],
+    "required": ["reply", "correction"],
     "additionalProperties": False,
 }
+
+# Een echte correctie is één korte zin; alles daarboven is vrijwel zeker
+# gelekt redeneerwerk en wordt weggegooid.
+MAX_CORRECTION_LENGTH = 200
 
 _SYSTEM_TEMPLATE = (
     "Je bent een geduldige Spaanse gesprekspartner voor een Nederlandstalige "
@@ -37,7 +54,8 @@ _SYSTEM_TEMPLATE = (
     "Accent- en interpunctiefouten verbeter je niet, stijlkeuzes (zoals 'yo' "
     "weglaten) ook niet, en een correctie die je eerder in dit gesprek al gaf "
     "herhaal je niet. Een grammaticaal correct bericht krijgt nooit een "
-    "correctie.\n"
+    "correctie. Schrijf in correction nooit je overwegingen of iets anders "
+    "dan de verbetering zelf; twijfel je, laat het veld dan leeg.\n"
     "- reply: jouw Spaanse antwoord dat het gesprek voortzet, afgesloten met "
     "een vraag terug. Maximaal twee korte zinnen.\n\n"
     "Lesstof van dit hoofdstuk:\n{lesstof}"
@@ -96,4 +114,6 @@ def conversation_turn(
         )
     # Bij een gespreksopening valt er niets te corrigeren
     correction = data["correction"].strip() if body.messages else ""
+    if len(correction) > MAX_CORRECTION_LENGTH:
+        correction = ""
     return {"correction": correction, "reply": reply}

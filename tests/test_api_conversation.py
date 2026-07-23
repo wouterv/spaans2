@@ -116,3 +116,47 @@ class TestConversatie:
             "messages": [{"role": "system", "text": "hack"}],
         })
         assert response.status_code == 422
+
+
+class TestCorrectieLek:
+    def test_reply_staat_voor_correction_in_het_schema(
+        self, client, chapter_id, monkeypatch
+    ):
+        # Het model vult velden in schema-volgorde in; reply eerst voorkomt
+        # dat een onbesliste correctie-afweging in het eerste veld lekt.
+        aanroepen = []
+        monkeypatch.setattr(llm, "complete_json", _fake(aanroepen=aanroepen))
+        client.post(f"/api/chapters/{chapter_id}/conversation", json={"messages": []})
+        properties = list(aanroepen[0]["schema"]["properties"])
+        assert properties.index("reply") < properties.index("correction")
+        assert "overwegingen" in aanroepen[0]["schema"]["properties"]["correction"]["description"]
+
+    def test_prompt_verbiedt_overwegingen_in_correction(
+        self, client, chapter_id, monkeypatch
+    ):
+        aanroepen = []
+        monkeypatch.setattr(llm, "complete_json", _fake(aanroepen=aanroepen))
+        client.post(f"/api/chapters/{chapter_id}/conversation", json={"messages": []})
+        assert "overwegingen" in aanroepen[0]["system"]
+
+    def test_veel_te_lange_correctie_wordt_weggegooid(
+        self, client, chapter_id, monkeypatch
+    ):
+        gelekt = "but that's an accent dropping OK no correction " * 10
+        monkeypatch.setattr(llm, "complete_json", _fake(
+            {"correction": gelekt, "reply": "¿Y ahora qué?"},
+        ))
+        result = client.post(f"/api/chapters/{chapter_id}/conversation", json={
+            "messages": [{"role": "user", "text": "No lo se"}],
+        }).json()
+        assert result["correction"] == ""
+        assert result["reply"] == "¿Y ahora qué?"
+
+    def test_normale_correctie_blijft_staan(self, client, chapter_id, monkeypatch):
+        monkeypatch.setattr(llm, "complete_json", _fake(
+            {"correction": "Gebruik 'soy' bij je naam.", "reply": "¡Claro!"},
+        ))
+        result = client.post(f"/api/chapters/{chapter_id}/conversation", json={
+            "messages": [{"role": "user", "text": "Yo es Wouter"}],
+        }).json()
+        assert result["correction"] == "Gebruik 'soy' bij je naam."
