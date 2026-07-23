@@ -41,11 +41,12 @@ export async function renderChapterHub(view, chapterId) {
       generateButton.disabled = true;
       generateStatus.textContent = 'Bezig met genereren… dit kan een minuut duren.';
       try {
-        const {created} = await api('/api/exercises/generate', {
+        const {created, skipped} = await api('/api/exercises/generate', {
           method: 'POST',
           body: {chapter_id: chapterId},
         });
-        generateStatus.textContent = `${created} oefeningen toegevoegd.`;
+        generateStatus.textContent = `${created} oefeningen toegevoegd`
+          + (skipped ? ` (${skipped} dubbele overgeslagen).` : '.');
         await renderChapterHub(view, chapterId);
       } catch (err) {
         generateButton.disabled = false;

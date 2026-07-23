@@ -260,7 +260,8 @@ class TestGenereren:
             return {"exercises": [
                 _gegenereerde_oefening(),
                 _gegenereerde_oefening(
-                    type="meerkeuze", options=["estoy", "soy"], answer="estoy",
+                    type="meerkeuze", prompt="Tú ___ cansado.",
+                    options=["estás", "eres"], answer="estás",
                 ),
             ]}
 
@@ -269,12 +270,12 @@ class TestGenereren:
             "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
         )
         assert response.status_code == 200
-        assert response.json() == {"created": 2}
+        assert response.json() == {"created": 2, "skipped": 0}
         exercises = client.get(
             f"/api/exercises?chapter_id={chapter_met_lesstof}"
         ).json()
         assert len(exercises) == 2
-        assert exercises[1]["options"] == ["estoy", "soy"]
+        assert exercises[1]["options"] == ["estás", "eres"]
         # De lesstof staat in de prompt naar de LLM
         content = prompts[0]["messages"][0]["content"]
         assert "Ser en estar" in content
@@ -292,7 +293,7 @@ class TestGenereren:
         response = client.post(
             "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
         )
-        assert response.json() == {"created": 1}
+        assert response.json() == {"created": 1, "skipped": 0}
 
     def test_meerkeuze_options_worden_gestript_opgeslagen(
         self, client, chapter_met_lesstof, monkeypatch
@@ -445,3 +446,89 @@ class TestGeneratieprompt:
         # De voorbeelden zitten in de prompt en de stijl-instructie in de systeemprompt
         assert "Completa: Yo ___" in prompts[0]["messages"][0]["content"]
         assert "kopieer ze niet letterlijk" in prompts[0]["system"]
+
+
+class TestDubbelen:
+    def test_bestaande_oefeningen_gaan_mee_in_de_prompt(
+        self, client, app_instance, chapter_met_lesstof, monkeypatch
+    ):
+        _insert_exercise(app_instance, chapter_met_lesstof, prompt="Yo ___ cansado.", answer="estoy")
+        weggestemd = _insert_exercise(
+            app_instance, chapter_met_lesstof, prompt="Tú ___ cansado.", answer="estás",
+        )
+        client.post(f"/api/exercises/{weggestemd}/disable")
+        prompts = []
+
+        def fake(**kwargs):
+            prompts.append(kwargs)
+            return {"exercises": [_gegenereerde_oefening()]}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        client.post("/api/exercises/generate", json={"chapter_id": chapter_met_lesstof})
+        content = prompts[0]["messages"][0]["content"]
+        assert "Yo ___ cansado." in content
+        # Ook weggestemde oefeningen tellen mee: die wil je niet opnieuw krijgen
+        assert "Tú ___ cansado." in content
+        assert "bestaan al" in content
+
+    def test_zonder_bestaande_oefeningen_geen_lijstje(
+        self, client, chapter_met_lesstof, monkeypatch
+    ):
+        prompts = []
+
+        def fake(**kwargs):
+            prompts.append(kwargs)
+            return {"exercises": [_gegenereerde_oefening()]}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        client.post("/api/exercises/generate", json={"chapter_id": chapter_met_lesstof})
+        assert "bestaan al" not in prompts[0]["messages"][0]["content"]
+
+    def test_dubbele_wordt_overgeslagen(
+        self, client, app_instance, chapter_met_lesstof, monkeypatch
+    ):
+        _insert_exercise(
+            app_instance, chapter_met_lesstof,
+            prompt="Yo ___ cansado.", answer="estoy",
+        )
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"exercises": [
+            # Zelfde prompt+antwoord, andere hoofdletters/spaties: toch dubbel
+            _gegenereerde_oefening(prompt="  yo ___ CANSADO. ", answer="Estoy"),
+            _gegenereerde_oefening(prompt="Nosotros ___ en casa.", answer="estamos"),
+        ]})
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        assert response.json() == {"created": 1, "skipped": 1}
+        exercises = client.get(
+            f"/api/exercises?chapter_id={chapter_met_lesstof}"
+        ).json()
+        assert len(exercises) == 2  # 1 bestaande + 1 nieuwe
+
+    def test_dubbele_binnen_een_batch_wordt_overgeslagen(
+        self, client, chapter_met_lesstof, monkeypatch
+    ):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"exercises": [
+            _gegenereerde_oefening(prompt="Yo ___ cansado.", answer="estoy"),
+            _gegenereerde_oefening(prompt="Yo ___ cansado.", answer="estoy"),
+        ]})
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        assert response.json() == {"created": 1, "skipped": 1}
+
+    def test_alles_dubbel_is_502(
+        self, client, app_instance, chapter_met_lesstof, monkeypatch
+    ):
+        _insert_exercise(
+            app_instance, chapter_met_lesstof,
+            prompt="Yo ___ cansado.", answer="estoy",
+        )
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"exercises": [
+            _gegenereerde_oefening(prompt="Yo ___ cansado.", answer="estoy"),
+        ]})
+        response = client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        assert response.status_code == 502
+        assert "bestaande" in response.json()["detail"]

@@ -1,4 +1,5 @@
 import json
+import re
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -197,6 +198,15 @@ class GenerateRequest(BaseModel):
     chapter_id: int
 
 
+def _dedup_key(prompt, answer):
+    """Vergelijkingssleutel: hoofdletters en witruimte doen er niet toe."""
+
+    def norm(text):
+        return re.sub(r"\s+", " ", text).strip().lower()
+
+    return (norm(prompt), norm(answer))
+
+
 def _valid_exercise(item):
     if not item["prompt"].strip() or not item["answer"].strip():
         return False
@@ -218,24 +228,41 @@ def generate_exercises(body: GenerateRequest, conn=Depends(get_conn)):
             "voorbeeldoefeningen om oefeningen op te baseren",
         )
     context = lesson_context(conn, body.chapter_id)
+    # Ook weggestemde oefeningen tellen mee: die wil je niet opnieuw krijgen
+    existing = conn.execute(
+        "SELECT prompt, answer FROM exercises WHERE chapter_id = ?",
+        (body.chapter_id,),
+    ).fetchall()
+    content = (
+        f"{context}\n\nMaak {GENERATION_COUNT} oefeningen, "
+        "gemengd over de vier typen."
+    )
+    if existing:
+        content += (
+            "\n\nDeze oefeningen bestaan al of zijn afgekeurd; maak geen "
+            "oefeningen die hierop lijken en kies andere zinnen en woorden:\n"
+            + "\n".join(f"- {row['prompt']} → {row['answer']}" for row in existing)
+        )
     try:
         data = llm.complete_json(
             system=_GENERATE_SYSTEM,
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"{context}\n\nMaak {GENERATION_COUNT} oefeningen, "
-                    "gemengd over de vier typen."
-                ),
-            }],
+            messages=[{"role": "user", "content": content}],
             schema=_EXERCISES_SCHEMA,
         )
     except llm.LLMError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+    # Vangnet: exact dubbele oefeningen (genormaliseerd) niet nogmaals opslaan
+    seen = {_dedup_key(row["prompt"], row["answer"]) for row in existing}
     created = 0
+    skipped = 0
     for item in data.get("exercises", []):
         if not _valid_exercise(item):
             continue
+        key = _dedup_key(item["prompt"], item["answer"])
+        if key in seen:
+            skipped += 1
+            continue
+        seen.add(key)
         conn.execute(
             "INSERT INTO exercises (chapter_id, type, instruction, prompt, "
             "answer, options, explanation) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -253,7 +280,13 @@ def generate_exercises(body: GenerateRequest, conn=Depends(get_conn)):
         created += 1
     conn.commit()
     if created == 0:
+        if skipped:
+            raise HTTPException(
+                status_code=502,
+                detail="Er kwamen alleen al bestaande oefeningen uit; "
+                "probeer het nog eens",
+            )
         raise HTTPException(
             status_code=502, detail="De taaldienst gaf geen bruikbare oefeningen"
         )
-    return {"created": created}
+    return {"created": created, "skipped": skipped}
