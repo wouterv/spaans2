@@ -8,7 +8,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import auth, db
-from app.routers import chapters, conversation, exercises, grammar, lessons, practice, verbs, words
+from app.routers import (
+    chapters, conversation, exercises, grammar, lessons, practice, verbs, words,
+)
 
 DEFAULT_DB = Path(__file__).parent.parent / "data" / "spaans.db"
 STATIC_DIR = Path(__file__).parent / "static"
