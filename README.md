@@ -23,7 +23,7 @@ node --test tests/js/queue.test.mjs       # JS-tests (oefenwachtrij)
 
 ## Configuratie (LLM)
 
-Voor de LLM-functies (oefeningen genereren, vertaalbeoordeling, scans uitlezen):
+Voor de LLM-functies (oefeningen genereren, vertaalbeoordeling, scans uitlezen, conversatie):
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...   # verplicht voor LLM-functies
