@@ -64,7 +64,7 @@ Nieuwe oefenmodus "Oefeningen" naast woorden/werkwoorden; hergebruik van `queue.
 | Type | Invoer | Controle |
 |---|---|---|
 | invullen | typen | lokaal, soepele check (`checking.py`, accent-hint) |
-| herschrijven | typen | lokaal, soepele check |
+| herschrijven | typen | eerst lokaal; alleen bij "fout" beoordeelt Claude, zoals bij vertalen (meerdere omzettingen kunnen goed zijn) |
 | meerkeuze | knoppen | lokaal |
 | vertalen | typen | eerst lokaal tegen opgeslagen antwoord; alleen bij "fout" beoordeelt Claude (goed/fout + korte uitleg) binnen hetzelfde check-endpoint |
 

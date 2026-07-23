@@ -347,3 +347,80 @@ class TestGenereren:
             "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
         )
         assert response.status_code == 502
+
+
+class TestHerschrijvenMetLLM:
+    def _herschrijf(self, app_instance, chapter_id):
+        return _insert_exercise(
+            app_instance, chapter_id,
+            type="herschrijven",
+            instruction="Zet om naar meervoud",
+            prompt="Esta es Catherine, mi hermana.",
+            answer="Estas son Catherine y Uma, mis hermanas",
+        )
+
+    def test_llm_keurt_gelijkwaardig_antwoord_goed(
+        self, client, app_instance, chapter_id, monkeypatch
+    ):
+        exercise_id = self._herschrijf(app_instance, chapter_id)
+        aanroepen = []
+
+        def fake(**kwargs):
+            aanroepen.append(kwargs)
+            return {"correct": True, "feedback": ""}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        result = client.post(
+            f"/api/exercises/{exercise_id}/check",
+            json={"answer": "Estas son Catherine y Emma, mis hermanas"},
+        ).json()
+        assert result["result"] == "correct"
+        # De opdracht gaat mee naar de LLM, anders is het antwoord niet te beoordelen
+        assert "Zet om naar meervoud" in aanroepen[0]["messages"][0]["content"]
+
+    def test_lokaal_goed_antwoord_slaat_llm_over(
+        self, client, app_instance, chapter_id, monkeypatch
+    ):
+        exercise_id = self._herschrijf(app_instance, chapter_id)
+
+        def boom(**kwargs):
+            raise AssertionError("LLM hoort niet aangeroepen te worden")
+
+        monkeypatch.setattr(llm, "complete_json", boom)
+        result = client.post(
+            f"/api/exercises/{exercise_id}/check",
+            json={"answer": "Estas son Catherine y Uma, mis hermanas"},
+        ).json()
+        assert result["result"] == "correct"
+
+    def test_llm_storing_valt_terug_op_lokale_check(
+        self, client, app_instance, chapter_id, monkeypatch
+    ):
+        exercise_id = self._herschrijf(app_instance, chapter_id)
+
+        def storing(**kwargs):
+            raise llm.LLMError("Geen verbinding met de taaldienst")
+
+        monkeypatch.setattr(llm, "complete_json", storing)
+        result = client.post(
+            f"/api/exercises/{exercise_id}/check",
+            json={"answer": "Estas son Catherine y Emma, mis hermanas"},
+        ).json()
+        assert result["result"] == "wrong"
+
+
+class TestGeneratieprompt:
+    def test_eist_afleidbaar_antwoord(
+        self, client, chapter_met_lesstof, monkeypatch
+    ):
+        prompts = []
+
+        def fake(**kwargs):
+            prompts.append(kwargs)
+            return {"exercises": [_gegenereerde_oefening()]}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        client.post(
+            "/api/exercises/generate", json={"chapter_id": chapter_met_lesstof}
+        )
+        assert "afleidbaar" in prompts[0]["system"]

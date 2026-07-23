@@ -52,24 +52,28 @@ _JUDGE_SCHEMA = {
 }
 
 _JUDGE_SYSTEM = (
-    "Je beoordeelt of een leerling een Nederlandse zin correct naar het Spaans "
-    "heeft vertaald. Meerdere vertalingen kunnen goed zijn; keur goed als de "
-    "vertaling grammaticaal correct is en de betekenis overbrengt. Accentfouten "
-    "zijn geen reden voor afkeuring. Geef bij een afkeuring in 'feedback' één "
-    "korte Nederlandse zin die uitlegt wat er mis is; anders een lege string."
+    "Je beoordeelt het antwoord van een leerling op een Spaanse oefening "
+    "(vertalen of een zin herschrijven). Meerdere antwoorden kunnen goed zijn; "
+    "keur goed als het antwoord de opdracht correct uitvoert en grammaticaal "
+    "klopt. Accentfouten zijn geen reden voor afkeuring. Bevat het "
+    "voorbeeldantwoord details die niet uit de opgave af te leiden zijn (zoals "
+    "een verzonnen naam), keur dan elk antwoord goed dat de opdracht verder "
+    "correct uitvoert. Geef bij een afkeuring in 'feedback' één korte "
+    "Nederlandse zin die uitlegt wat er mis is; anders een lege string."
 )
 
 
-def _judge_translation(exercise, answer):
-    """LLM-oordeel over een vertaling; None bij storing (dan telt de lokale check)."""
+def _judge_answer(exercise, answer):
+    """LLM-oordeel over een antwoord; None bij storing (dan telt de lokale check)."""
     try:
         return llm.complete_json(
             system=_JUDGE_SYSTEM,
             messages=[{
                 "role": "user",
                 "content": (
-                    f"Nederlandse zin: {exercise['prompt']}\n"
-                    f"Voorbeeldvertaling: {exercise['answer']}\n"
+                    f"Opdracht: {exercise['instruction']}\n"
+                    f"Opgave: {exercise['prompt']}\n"
+                    f"Voorbeeldantwoord: {exercise['answer']}\n"
                     f"Antwoord van de leerling: {answer}"
                 ),
             }],
@@ -99,7 +103,8 @@ def _update_stats(conn, exercise_id, exercise_type, is_correct):
 @router.post("/{exercise_id}/check")
 def check_exercise(exercise_id: int, body: ExerciseCheck, conn=Depends(get_conn)):
     exercise = conn.execute(
-        "SELECT id, type, prompt, answer, explanation FROM exercises WHERE id = ?",
+        "SELECT id, type, instruction, prompt, answer, explanation "
+        "FROM exercises WHERE id = ?",
         (exercise_id,),
     ).fetchone()
     if exercise is None:
@@ -107,14 +112,14 @@ def check_exercise(exercise_id: int, body: ExerciseCheck, conn=Depends(get_conn)
 
     result = check_answer(exercise["answer"], body.answer)
     feedback = ""
-    # Bij vertalen kunnen meerdere antwoorden goed zijn: alleen als de lokale
-    # check "fout" zegt, mag de LLM het eindoordeel geven.
+    # Bij vertalen en herschrijven kunnen meerdere antwoorden goed zijn: alleen
+    # als de lokale check "fout" zegt, mag de LLM het eindoordeel geven.
     if (
         result.result == "wrong"
-        and exercise["type"] == "vertalen"
+        and exercise["type"] in ("vertalen", "herschrijven")
         and body.answer.strip()
     ):
-        verdict = _judge_translation(exercise, body.answer)
+        verdict = _judge_answer(exercise, body.answer)
         if verdict is not None:
             if verdict["correct"]:
                 result = CheckResult("correct", result.correct_answer, body.answer)
@@ -179,7 +184,9 @@ _GENERATE_SYSTEM = (
     "instruction is altijd een korte Nederlandse opdracht. explanation is één "
     "korte Nederlandse zin die de regel achter het antwoord uitlegt. options "
     "is bij andere typen dan meerkeuze een lege lijst. Houd de zinnen kort en "
-    "op beginnersniveau."
+    "op beginnersniveau. Het antwoord moet volledig afleidbaar zijn uit de "
+    "opdracht en de opgave: introduceer in het antwoord geen namen, woorden of "
+    "feiten die de leerling niet uit de opgave kan weten."
 )
 
 
