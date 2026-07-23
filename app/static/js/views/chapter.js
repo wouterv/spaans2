@@ -136,5 +136,14 @@ export async function renderChapterHub(view, chapterId) {
       ),
       generateStatus,
     ),
+    el(
+      'div',
+      {class: 'card'},
+      el('h2', {}, 'Gesprek'),
+      el('p', {class: 'muted'},
+        'Oefen conversatie in het Spaans over de lesstof, met directe correcties.'),
+      el('div', {class: 'row'},
+        el('a', {class: 'btn btn-big', href: `#/h/${chapterId}/gesprek`}, '💬 Gesprek starten')),
+    ),
   );
 }

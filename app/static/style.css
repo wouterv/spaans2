@@ -238,3 +238,13 @@ input.luistert { border-color: var(--sol); box-shadow: 0 0 0 2px var(--sol-zacht
   main { padding-top: 1.5rem; }
   .btn-big { width: auto; }
 }
+
+/* Gesprek */
+.chat { display: flex; flex-direction: column; gap: 0.6rem; margin: 1rem 0; }
+.bubble { max-width: 85%; padding: 0.6rem 0.9rem; border-radius: var(--radius); white-space: pre-wrap; }
+.bubble.leerling { align-self: flex-end; background: var(--sol-zacht); }
+.bubble.partner { align-self: flex-start; background: var(--card); border: 1px solid var(--line); font-family: var(--serif); font-size: 1.1rem; }
+.bubble .correctie { display: block; margin-top: 0.4rem; font-family: var(--sans); font-size: 0.85rem; color: var(--rojo); }
+.bubble.wachten { color: var(--muted); font-style: italic; }
+.chat-invoer { display: flex; gap: 0.5rem; }
+.chat-invoer input { flex: 1; }

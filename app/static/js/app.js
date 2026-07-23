@@ -11,6 +11,7 @@ import {renderPracticeWords} from './views/practice-words.js';
 import {renderPracticeVerbs} from './views/practice-verbs.js';
 import {renderPracticeExercises} from './views/practice-exercises.js';
 import {renderVoiceSettings} from './views/voice-settings.js';
+import {renderConversation} from './views/conversation.js';
 
 const view = document.getElementById('view');
 
@@ -23,6 +24,7 @@ const routes = [
   [/^h\/(\d+)\/grammatica$/, (id) => renderGrammarEntry(view, +id)],
   [/^h\/(\d+)\/lezen$/, (id) => renderGrammarReader(view, +id)],
   [/^h\/(\d+)\/les-uploaden$/, (id) => renderLessonUpload(view, +id)],
+  [/^h\/(\d+)\/gesprek$/, (id) => renderConversation(view, +id)],
   [
     /^h\/(\d+)\/oefen\/woorden\/(es_nl|nl_es)\/(typen|spraak)$/,
     (id, direction, mode) => renderPracticeWords(view, +id, direction, mode),
