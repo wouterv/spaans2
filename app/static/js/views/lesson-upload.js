@@ -145,24 +145,27 @@ export async function renderLessonUpload(view, chapterId) {
     const saveButton = el('button', {
       class: 'btn-primary btn-big',
       onclick: async () => {
-        const payloads = [...editorsWrap.querySelectorAll('[data-rule]')]
-          .map((card) => card.readRule())
-          .filter((rule) => rule.title);
-        if (!payloads.length) {
+        const cards = [...editorsWrap.querySelectorAll('[data-rule]')];
+        const payloads = cards.map((card) => card.readRule());
+        if (!payloads.some((rule) => rule.title)) {
           status.textContent = 'Er is niets om op te slaan.';
           return;
         }
         saveButton.disabled = true;
         try {
-          for (const payload of payloads) {
-            await api('/api/grammar', {
-              method: 'POST', body: {chapter_id: chapterId, ...payload},
-            });
+          for (const [i, card] of cards.entries()) {
+            if (payloads[i].title) {
+              await api('/api/grammar', {
+                method: 'POST', body: {chapter_id: chapterId, ...payloads[i]},
+              });
+            }
+            card.remove();
           }
           location.hash = `#/h/${chapterId}/grammatica`;
         } catch (err) {
           saveButton.disabled = false;
-          status.textContent = `Opslaan mislukte: ${err.message}`;
+          status.textContent =
+            `Opslaan mislukte: ${err.message}. De al opgeslagen regels zijn uit de lijst gehaald — controleer de rest en probeer opnieuw.`;
         }
       },
     }, '💾 Alles opslaan');
