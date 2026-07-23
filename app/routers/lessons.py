@@ -44,21 +44,29 @@ _RULES_SCHEMA = {
                 "required": ["title", "explanation", "examples"],
                 "additionalProperties": False,
             },
-        }
+        },
+        "examples": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
     },
-    "required": ["rules"],
+    "required": ["rules", "examples"],
     "additionalProperties": False,
 }
 
 _EXTRACT_SYSTEM = (
     "Je leest foto's of scans van pagina's uit een Spaans lesboek voor "
-    "Nederlandstaligen. Zet de leerstof om naar grammaticaregels: een korte "
-    "Nederlandse titel, een beknopte Nederlandse uitleg in eigen woorden, en "
-    "de Spaanse voorbeeldzinnen van de pagina met hun Nederlandse vertaling "
-    "(vertaal zelf als de vertaling er niet bij staat). Neem alleen leerstof "
-    "over: sla invuloefeningen, opgaven en paginanummers over. Verzin geen "
-    "regels die niet op de pagina staan. Splits verschillende onderwerpen in "
-    "aparte regels."
+    "Nederlandstaligen. Een pagina kan uitleg bevatten, oefenopgaven, of "
+    "beide. Zet beide om:\n"
+    "- Uitleg wordt een grammaticaregel (rules): een korte Nederlandse "
+    "titel, een beknopte Nederlandse uitleg in eigen woorden, en de Spaanse "
+    "voorbeeldzinnen van de pagina met hun Nederlandse vertaling (vertaal "
+    "zelf als de vertaling er niet bij staat).\n"
+    "- Elke oefenopgave wordt een voorbeeldoefening (examples): neem de "
+    "opgave letterlijk over als één tekst, inclusief de opdracht erboven en "
+    "het antwoord als dat afgedrukt staat.\n"
+    "Sla paginanummers en kopteksten over. Verzin niets dat niet op de "
+    "pagina staat. Splits verschillende onderwerpen in aparte regels."
 )
 
 
@@ -102,6 +110,10 @@ def _clean_rules(data):
     return rules
 
 
+def _clean_examples(data):
+    return [ex.strip() for ex in data.get("examples", []) if ex.strip()]
+
+
 @router.post("/{chapter_id}/lessons/extract")
 def extract_lesson(chapter_id: int, body: ExtractRequest, conn=Depends(get_conn)):
     chapter_or_404(conn, chapter_id)
@@ -119,7 +131,7 @@ def extract_lesson(chapter_id: int, body: ExtractRequest, conn=Depends(get_conn)
     ]
     content.append({
         "type": "text",
-        "text": "Zet de lesstof op deze pagina('s) om naar grammaticaregels.",
+        "text": "Zet de lesstof op deze pagina('s) om naar grammaticaregels en voorbeeldoefeningen.",
     })
     try:
         data = llm.complete_json(
@@ -130,8 +142,9 @@ def extract_lesson(chapter_id: int, body: ExtractRequest, conn=Depends(get_conn)
     except llm.LLMError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     rules = _clean_rules(data)
-    if not rules:
+    examples = _clean_examples(data)
+    if not rules and not examples:
         raise HTTPException(
             status_code=502, detail="Geen lesstof herkend in de scan(s)"
         )
-    return {"rules": rules}
+    return {"rules": rules, "examples": examples}

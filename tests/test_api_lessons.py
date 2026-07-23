@@ -42,7 +42,7 @@ class TestExtract:
             f"/api/chapters/{chapter_id}/lessons/extract", json=_body(n=2)
         )
         assert response.status_code == 200
-        assert response.json() == {"rules": [_regel()]}
+        assert response.json() == {"rules": [_regel()], "examples": []}
         # De afbeeldingen zitten als image-content-blocks in het bericht
         content = aanroepen[0]["messages"][0]["content"]
         image_blocks = [b for b in content if b["type"] == "image"]
@@ -120,8 +120,47 @@ class TestExtract:
         assert response.json()["detail"] == "Geen verbinding met de taaldienst"
 
     def test_geen_regels_herkend_is_502(self, client, chapter_id, monkeypatch):
-        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"rules": []})
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"rules": [], "examples": []})
         response = client.post(
             f"/api/chapters/{chapter_id}/lessons/extract", json=_body()
         )
         assert response.status_code == 502
+
+    def test_gemengde_pagina_geeft_regels_en_voorbeelden(
+        self, client, chapter_id, monkeypatch
+    ):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {
+            "rules": [_regel()],
+            "examples": ["Completa: Yo ___ (ser) de Holanda.", "  ", "Traduce: ik ben moe."],
+        })
+        body = client.post(
+            f"/api/chapters/{chapter_id}/lessons/extract", json=_body()
+        ).json()
+        assert body["rules"] == [_regel()]
+        # Lege items eruit, rest gestript
+        assert body["examples"] == [
+            "Completa: Yo ___ (ser) de Holanda.", "Traduce: ik ben moe.",
+        ]
+
+    def test_alleen_opgaven_is_geen_502(self, client, chapter_id, monkeypatch):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {
+            "rules": [], "examples": ["Completa: Tú ___ (estar) cansado."],
+        })
+        response = client.post(
+            f"/api/chapters/{chapter_id}/lessons/extract", json=_body()
+        )
+        assert response.status_code == 200
+        assert response.json()["rules"] == []
+
+    def test_extractieprompt_vraagt_ook_om_opgaven(
+        self, client, chapter_id, monkeypatch
+    ):
+        aanroepen = []
+
+        def fake(**kwargs):
+            aanroepen.append(kwargs)
+            return {"rules": [_regel()], "examples": []}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        client.post(f"/api/chapters/{chapter_id}/lessons/extract", json=_body())
+        assert "voorbeeldoefening" in aanroepen[0]["system"].lower()
