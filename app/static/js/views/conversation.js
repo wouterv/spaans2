@@ -96,8 +96,9 @@ export async function renderConversation(view, chapterId) {
     try {
       const {correction, reply} = await api(
         `/api/chapters/${chapterId}/conversation`,
-        // Alleen role/text naar de server; correcties zijn lokale weergave
-        {method: 'POST', body: {messages: history.map(({role, text}) => ({role, text}))}},
+        // Correcties gaan mee, zodat het model ziet wat al behandeld is
+        {method: 'POST', body: {messages: history.map(({role, text, correction}) =>
+          correction ? {role, text, correction} : {role, text})}},
       );
       waiting.remove();
       if (correction) {

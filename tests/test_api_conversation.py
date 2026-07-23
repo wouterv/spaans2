@@ -43,11 +43,12 @@ class TestConversatie:
             "correction": "Kleine fout: 'estoy', niet 'esta'.",
             "reply": "¿Y ahora?",
         }
-        # Geschiedenis is één-op-één doorgegeven
-        assert aanroepen[0]["messages"] == [
-            {"role": "assistant", "content": "¿Cómo estás?"},
-            {"role": "user", "content": "Esta bien."},
-        ]
+        # User-beurten kaal; assistent-beurten in het eigen antwoordformaat
+        import json
+        assert aanroepen[0]["messages"][1] == {"role": "user", "content": "Esta bien."}
+        assert json.loads(aanroepen[0]["messages"][0]["content"]) == {
+            "reply": "¿Cómo estás?", "correction": "",
+        }
         # De lesstof zit in de systeemprompt en die wordt gecachet
         assert "Ser en estar" in str(aanroepen[0]["system"])
         assert aanroepen[0]["cache_system"] is True
@@ -160,3 +161,48 @@ class TestCorrectieLek:
             "messages": [{"role": "user", "text": "Yo es Wouter"}],
         }).json()
         assert result["correction"] == "Gebruik 'soy' bij je naam."
+
+
+class TestCorrectieHerhaling:
+    def test_eerdere_correcties_gaan_mee_naar_het_model(
+        self, client, chapter_id, monkeypatch
+    ):
+        aanroepen = []
+        monkeypatch.setattr(llm, "complete_json", _fake(aanroepen=aanroepen))
+        client.post(f"/api/chapters/{chapter_id}/conversation", json={
+            "messages": [
+                {"role": "assistant", "text": "¿Qué ropa llevas?"},
+                {"role": "user", "text": "Llevo unas pantalones",
+                 "correction": "Het is 'unos pantalones' (mannelijk)."},
+                {"role": "assistant", "text": "¡Muy bien! ¿Y de qué color?"},
+                {"role": "user", "text": "Son marrones"},
+            ],
+        })
+        messages = aanroepen[0]["messages"]
+        # User-beurten blijven kale tekst
+        assert messages[1] == {"role": "user", "content": "Llevo unas pantalones"}
+        assert messages[3] == {"role": "user", "content": "Son marrones"}
+        # Assistent-beurten in het eigen antwoordformaat, mét de gegeven correctie
+        import json
+        tweede = json.loads(messages[2]["content"])
+        assert tweede == {
+            "reply": "¡Muy bien! ¿Y de qué color?",
+            "correction": "Het is 'unos pantalones' (mannelijk).",
+        }
+        eerste = json.loads(messages[0]["content"])
+        assert eerste == {"reply": "¿Qué ropa llevas?", "correction": ""}
+
+    def test_prompt_verbiedt_hercorrigeren_van_eerdere_berichten(
+        self, client, chapter_id, monkeypatch
+    ):
+        aanroepen = []
+        monkeypatch.setattr(llm, "complete_json", _fake(aanroepen=aanroepen))
+        client.post(f"/api/chapters/{chapter_id}/conversation", json={"messages": []})
+        assert "nooit opnieuw" in aanroepen[0]["system"]
+
+    def test_correction_veld_is_optioneel(self, client, chapter_id, monkeypatch):
+        monkeypatch.setattr(llm, "complete_json", _fake())
+        response = client.post(f"/api/chapters/{chapter_id}/conversation", json={
+            "messages": [{"role": "user", "text": "Hola"}],
+        })
+        assert response.status_code == 200

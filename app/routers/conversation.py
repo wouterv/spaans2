@@ -4,6 +4,7 @@ Stateless: de frontend stuurt per beurt de hele geschiedenis mee en er
 wordt niets opgeslagen (spec). De systeemprompt met lesstof wordt gecachet.
 """
 
+import json
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -52,10 +53,13 @@ _SYSTEM_TEMPLATE = (
     "- correction: alleen als het laatste bericht van de leerling een echte "
     "fout bevat één korte Nederlandse verbetering; anders een lege string. "
     "Accent- en interpunctiefouten verbeter je niet, stijlkeuzes (zoals 'yo' "
-    "weglaten) ook niet, en een correctie die je eerder in dit gesprek al gaf "
-    "herhaal je niet. Een grammaticaal correct bericht krijgt nooit een "
-    "correctie. Schrijf in correction nooit je overwegingen of iets anders "
-    "dan de verbetering zelf; twijfel je, laat het veld dan leeg.\n"
+    "weglaten) ook niet. De correctie gaat uitsluitend over het allerlaatste "
+    "bericht van de leerling: eerdere berichten zijn al behandeld (je eerdere "
+    "correcties staan in je vorige antwoorden) en corrigeer je nooit opnieuw, "
+    "ook niet als er nog fouten in staan. Een grammaticaal correct bericht "
+    "krijgt nooit een correctie. Schrijf in correction nooit je overwegingen "
+    "of iets anders dan de verbetering zelf; twijfel je, laat het veld dan "
+    "leeg.\n"
     "- reply: jouw Spaanse antwoord dat het gesprek voortzet, afgesloten met "
     "een vraag terug. Maximaal twee korte zinnen.\n\n"
     "Lesstof van dit hoofdstuk:\n{lesstof}"
@@ -70,6 +74,9 @@ _OPENING = (
 class TurnIn(BaseModel):
     role: Literal["user", "assistant"]
     text: str = Field(min_length=1, max_length=4000)
+    # De correctie die de leerling destijds op dit (user-)bericht kreeg;
+    # gaat terug naar het model zodat het niets dubbel corrigeert
+    correction: str = Field(default="", max_length=1000)
 
 
 class ConversationRequest(BaseModel):
@@ -93,9 +100,24 @@ def conversation_turn(
                 status_code=400,
                 detail="Het laatste bericht moet van de leerling zijn",
             )
-        messages = [
-            {"role": turn.role, "content": turn.text} for turn in body.messages
-        ]
+        # Assistent-beurten gaan terug in het formaat waarin het model ze gaf
+        # (reply + correction op het voorafgaande leerling-bericht), zodat het
+        # ziet welke correcties al gegeven zijn en die niet herhaalt.
+        messages = []
+        last_correction = ""
+        for turn in body.messages:
+            if turn.role == "user":
+                last_correction = turn.correction
+                messages.append({"role": "user", "content": turn.text})
+            else:
+                messages.append({
+                    "role": "assistant",
+                    "content": json.dumps(
+                        {"reply": turn.text, "correction": last_correction},
+                        ensure_ascii=False,
+                    ),
+                })
+                last_correction = ""
     else:
         messages = [{"role": "user", "content": _OPENING}]
     try:
