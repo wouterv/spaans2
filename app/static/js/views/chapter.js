@@ -117,7 +117,8 @@ export async function renderChapterHub(view, chapterId) {
       {class: 'card'},
       el('h2', {}, 'Grammatica'),
       el('div', {class: 'row'},
-        el('a', {class: 'btn btn-big', href: `#/h/${chapterId}/lezen`}, '📖 Lezen & luisteren')),
+        el('a', {class: 'btn btn-big', href: `#/h/${chapterId}/lezen`}, '📖 Lezen & luisteren'),
+        el('a', {class: 'btn btn-big', href: `#/h/${chapterId}/les-uploaden`}, '📷 Les uploaden')),
     ),
     el(
       'div',
