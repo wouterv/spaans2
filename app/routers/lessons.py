@@ -142,7 +142,11 @@ _WORDS_SYSTEM = (
     "paginanummers. Verzin geen paren die niet op de pagina staan en vertaal "
     "niet zelf: neem alleen paren over waarvan beide kanten er staan. Een "
     "geslachtspaar zoals 'el primo/la prima' blijft één paar, met '/' aan "
-    "beide taalkanten."
+    "beide taalkanten. Gebruikt het boek een verkorte notatie zoals "
+    "'arquitecto/a', 'profesor/a' of 'francés/esa', schrijf dan beide vormen "
+    "voluit ('arquitecto/arquitecta', 'profesor/profesora', "
+    "'francés/francesa'); neem nooit een los achtervoegsel na de '/' over — "
+    "elke vorm moet een volledig woord zijn."
 )
 
 

@@ -229,3 +229,18 @@ class TestWordsExtract:
             f"/api/chapters/{chapter_id}/words/extract", json=_body()
         )
         assert response.status_code == 503
+
+    def test_prompt_eist_voluit_geschreven_vormen(
+        self, client, chapter_id, monkeypatch
+    ):
+        aanroepen = []
+
+        def fake(**kwargs):
+            aanroepen.append(kwargs)
+            return {"words": [{"spanish": "x", "dutch": "y"}]}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        client.post(f"/api/chapters/{chapter_id}/words/extract", json=_body())
+        systeem = aanroepen[0]["system"]
+        assert "voluit" in systeem
+        assert "achtervoegsel" in systeem
