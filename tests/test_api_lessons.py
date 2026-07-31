@@ -164,3 +164,68 @@ class TestExtract:
         monkeypatch.setattr(llm, "complete_json", fake)
         client.post(f"/api/chapters/{chapter_id}/lessons/extract", json=_body())
         assert "voorbeeldoefening" in aanroepen[0]["system"].lower()
+
+
+class TestWordsExtract:
+    def test_geeft_woordparen_terug_en_slaat_niets_op(
+        self, client, chapter_id, monkeypatch
+    ):
+        aanroepen = []
+
+        def fake(**kwargs):
+            aanroepen.append(kwargs)
+            return {"words": [
+                {"spanish": "el primo/la prima", "dutch": "de neef/de nicht"},
+                {"spanish": " cansado ", "dutch": " moe "},
+                {"spanish": "", "dutch": "leeg"},
+                {"spanish": "sin holandés", "dutch": "  "},
+            ]}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        response = client.post(
+            f"/api/chapters/{chapter_id}/words/extract", json=_body(n=2)
+        )
+        assert response.status_code == 200
+        assert response.json() == {"words": [
+            {"spanish": "el primo/la prima", "dutch": "de neef/de nicht"},
+            {"spanish": "cansado", "dutch": "moe"},
+        ]}
+        # Instructie: alleen woordparen, rest negeren
+        assert "negeer" in aanroepen[0]["system"].lower()
+        # Twee afbeeldingen als content-blocks
+        content = aanroepen[0]["messages"][0]["content"]
+        assert len([b for b in content if b["type"] == "image"]) == 2
+        # Niets opgeslagen
+        assert client.get(f"/api/words?chapter_id={chapter_id}").json() == []
+
+    def test_geen_woorden_herkend_is_502(self, client, chapter_id, monkeypatch):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"words": []})
+        response = client.post(
+            f"/api/chapters/{chapter_id}/words/extract", json=_body()
+        )
+        assert response.status_code == 502
+        assert "woordenlijst" in response.json()["detail"].lower()
+
+    def test_onbekend_hoofdstuk_is_404(self, client, monkeypatch):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {"words": []})
+        assert (
+            client.post("/api/chapters/999/words/extract", json=_body()).status_code
+            == 404
+        )
+
+    def test_ongeldige_base64_is_400(self, client, chapter_id):
+        response = client.post(
+            f"/api/chapters/{chapter_id}/words/extract",
+            json=_body(data="geen base64!!!"),
+        )
+        assert response.status_code == 400
+
+    def test_llm_storing_is_503(self, client, chapter_id, monkeypatch):
+        def storing(**kwargs):
+            raise llm.LLMError("Geen verbinding met de taaldienst")
+
+        monkeypatch.setattr(llm, "complete_json", storing)
+        response = client.post(
+            f"/api/chapters/{chapter_id}/words/extract", json=_body()
+        )
+        assert response.status_code == 503

@@ -114,6 +114,83 @@ def _clean_examples(data):
     return [ex.strip() for ex in data.get("examples", []) if ex.strip()]
 
 
+_WORDS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "words": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "spanish": {"type": "string"},
+                    "dutch": {"type": "string"},
+                },
+                "required": ["spanish", "dutch"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["words"],
+    "additionalProperties": False,
+}
+
+_WORDS_SYSTEM = (
+    "Je leest foto's of scans van pagina's uit een Spaans lesboek voor "
+    "Nederlandstaligen. Herken uitsluitend Spaans-Nederlandse woordparen: "
+    "woordenlijstjes, tabellen of vocabulaire in de kantlijn. Negeer alle "
+    "overige tekst volledig — uitleg, oefenopgaven, lopende tekst en "
+    "paginanummers. Verzin geen paren die niet op de pagina staan en vertaal "
+    "niet zelf: neem alleen paren over waarvan beide kanten er staan. Een "
+    "geslachtspaar zoals 'el primo/la prima' blijft één paar, met '/' aan "
+    "beide taalkanten."
+)
+
+
+def _clean_words(data):
+    words = []
+    for word in data.get("words", []):
+        spanish = word["spanish"].strip()
+        dutch = word["dutch"].strip()
+        if spanish and dutch:
+            words.append({"spanish": spanish, "dutch": dutch})
+    return words
+
+
+@router.post("/{chapter_id}/words/extract")
+def extract_words(chapter_id: int, body: ExtractRequest, conn=Depends(get_conn)):
+    chapter_or_404(conn, chapter_id)
+    _validate_images(body.images)
+    content = [
+        {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": image.media_type,
+                "data": image.data,
+            },
+        }
+        for image in body.images
+    ]
+    content.append({
+        "type": "text",
+        "text": "Haal de Spaans-Nederlandse woordparen van deze pagina('s).",
+    })
+    try:
+        data = llm.complete_json(
+            system=_WORDS_SYSTEM,
+            messages=[{"role": "user", "content": content}],
+            schema=_WORDS_SCHEMA,
+        )
+    except llm.LLMError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    words = _clean_words(data)
+    if not words:
+        raise HTTPException(
+            status_code=502, detail="Geen woordenlijst herkend in de scan(s)"
+        )
+    return {"words": words}
+
+
 @router.post("/{chapter_id}/lessons/extract")
 def extract_lesson(chapter_id: int, body: ExtractRequest, conn=Depends(get_conn)):
     chapter_or_404(conn, chapter_id)
