@@ -65,6 +65,10 @@ export async function renderChapterHub(view, chapterId) {
       {class: 'list'},
       el('li', {},
         el('a', {class: 'grow', href: `#/h/${chapterId}/woorden`}, 'Woorden'),
+        el('a', {
+          class: 'icon-btn fixed', href: `#/h/${chapterId}/woorden-scannen`,
+          title: 'Woordenlijst scannen', 'aria-label': 'Woordenlijst scannen',
+        }, '📷'),
         el('span', {class: 'counts'}, String(chapter.word_count))),
       el('li', {},
         el('a', {class: 'grow', href: `#/h/${chapterId}/werkwoorden`}, 'Werkwoorden'),

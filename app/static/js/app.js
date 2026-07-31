@@ -8,6 +8,7 @@ import {renderGrammarEntry} from './views/grammar-entry.js';
 import {renderGrammarReader} from './views/grammar-reader.js';
 import {renderExamplesEntry} from './views/examples-entry.js';
 import {renderLessonUpload} from './views/lesson-upload.js';
+import {renderWordsScan} from './views/words-scan.js';
 import {renderPracticeWords} from './views/practice-words.js';
 import {renderPracticeVerbs} from './views/practice-verbs.js';
 import {renderPracticeExercises} from './views/practice-exercises.js';
@@ -26,6 +27,7 @@ const routes = [
   [/^h\/(\d+)\/voorbeelden$/, (id) => renderExamplesEntry(view, +id)],
   [/^h\/(\d+)\/lezen$/, (id) => renderGrammarReader(view, +id)],
   [/^h\/(\d+)\/les-uploaden$/, (id) => renderLessonUpload(view, +id)],
+  [/^h\/(\d+)\/woorden-scannen$/, (id) => renderWordsScan(view, +id)],
   [/^h\/(\d+)\/gesprek$/, (id) => renderConversation(view, +id)],
   [
     /^h\/(\d+)\/oefen\/woorden\/(es_nl|nl_es)\/(typen|spraak)$/,
