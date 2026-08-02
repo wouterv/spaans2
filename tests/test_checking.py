@@ -96,6 +96,45 @@ def test_accent_hint_works_with_form():
     assert result.matched == "la médica"
 
 
+def test_article_may_be_omitted_in_answer():
+    assert check_answer("el coche", "coche").result == "correct"
+    assert check_answer("het huis", "huis").result == "correct"
+    assert check_answer("una manzana", "manzana").result == "correct"
+
+
+def test_article_may_be_added_in_answer():
+    assert check_answer("coche", "el coche").result == "correct"
+    assert check_answer("huis", "het huis").result == "correct"
+
+
+def test_wrong_article_stays_wrong():
+    assert check_answer("el coche", "la coche").result == "wrong"
+    assert check_answer("de neef", "het neef").result == "wrong"
+
+
+def test_article_leniency_works_within_synonyms():
+    assert check_answer("el coche; el auto", "auto").result == "correct"
+
+
+def test_article_leniency_combines_with_accents():
+    result = check_answer("el árbol", "arbol")
+    assert result.result == "correct_accent"
+    assert result.matched == "el árbol"
+
+
+def test_article_alone_is_not_stripped_to_nothing():
+    assert check_answer("el", "el").result == "correct"
+    assert check_answer("el coche", "el").result == "wrong"
+
+
+def test_form_question_still_requires_the_article():
+    # Bij een geslachtsvraag toetst het lidwoord juist het geslacht
+    # (el estudiante/la estudiante) en blijft het dus verplicht.
+    stored = "el estudiante/la estudiante"
+    assert check_answer(stored, "estudiante", form=0).result == "wrong"
+    assert check_answer(stored, "el estudiante", form=0).result == "correct"
+
+
 def test_missing_accent_is_correct_with_hint():
     result = check_answer("cómo", "como")
     assert result.result == "correct_accent"
