@@ -49,8 +49,20 @@ _RULES_SCHEMA = {
             "type": "array",
             "items": {"type": "string"},
         },
+        "verbs": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "infinitive_es": {"type": "string"},
+                    "translation_nl": {"type": "string"},
+                },
+                "required": ["infinitive_es", "translation_nl"],
+                "additionalProperties": False,
+            },
+        },
     },
-    "required": ["rules", "examples"],
+    "required": ["rules", "examples", "verbs"],
     "additionalProperties": False,
 }
 
@@ -65,6 +77,13 @@ _EXTRACT_SYSTEM = (
     "- Elke oefenopgave wordt een voorbeeldoefening (examples): neem de "
     "opgave letterlijk over als één tekst, inclusief de opdracht erboven en "
     "het antwoord als dat afgedrukt staat.\n"
+    "- Biedt de pagina expliciet werkwoorden aan — in een woordenlijstje "
+    "met vertaling, een vervoegingstabel of duidelijk als nieuwe stof — "
+    "dan worden dat werkwoorden (verbs): de infinitief voluit geschreven "
+    "(reflexieve werkwoorden mét -se, zoals 'levantarse') met de "
+    "Nederlandse vertaling (vertaal zelf als die er niet bij staat). Neem "
+    "geen werkwoorden over die alleen in lopende tekst of voorbeeldzinnen "
+    "voorkomen.\n"
     "Sla paginanummers en kopteksten over. Verzin niets dat niet op de "
     "pagina staat. Splits verschillende onderwerpen in aparte regels."
 )
@@ -112,6 +131,22 @@ def _clean_rules(data):
 
 def _clean_examples(data):
     return [ex.strip() for ex in data.get("examples", []) if ex.strip()]
+
+
+def _clean_verbs(data, existing):
+    """Werkwoorden uit het LLM-antwoord, zonder lege kanten en zonder
+    werkwoorden die al in het hoofdstuk staan (of dubbel herkend zijn)."""
+    seen = set(existing)
+    verbs = []
+    for verb in data.get("verbs", []):
+        infinitive = verb["infinitive_es"].strip().lower()
+        translation = verb["translation_nl"].strip()
+        if infinitive and translation and infinitive not in seen:
+            seen.add(infinitive)
+            verbs.append(
+                {"infinitive_es": infinitive, "translation_nl": translation}
+            )
+    return verbs
 
 
 _WORDS_SCHEMA = {
@@ -212,7 +247,8 @@ def extract_lesson(chapter_id: int, body: ExtractRequest, conn=Depends(get_conn)
     ]
     content.append({
         "type": "text",
-        "text": "Zet de lesstof op deze pagina('s) om naar grammaticaregels en voorbeeldoefeningen.",
+        "text": "Zet de lesstof op deze pagina('s) om naar grammaticaregels, "
+                "voorbeeldoefeningen en werkwoorden.",
     })
     try:
         data = llm.complete_json(
@@ -224,8 +260,15 @@ def extract_lesson(chapter_id: int, body: ExtractRequest, conn=Depends(get_conn)
         raise HTTPException(status_code=503, detail=str(exc))
     rules = _clean_rules(data)
     examples = _clean_examples(data)
-    if not rules and not examples:
+    existing = {
+        row["infinitive_es"].strip().lower()
+        for row in conn.execute(
+            "SELECT infinitive_es FROM verbs WHERE chapter_id = ?", (chapter_id,)
+        )
+    }
+    verbs = _clean_verbs(data, existing)
+    if not rules and not examples and not verbs:
         raise HTTPException(
             status_code=502, detail="Geen lesstof herkend in de scan(s)"
         )
-    return {"rules": rules, "examples": examples}
+    return {"rules": rules, "examples": examples, "verbs": verbs}

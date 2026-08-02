@@ -27,6 +27,12 @@ def _regel(**overrides):
     return regel
 
 
+_FORMS = {
+    "yo": "hablo", "tu": "hablas", "el": "habla",
+    "nosotros": "hablamos", "vosotros": "habláis", "ellos": "hablan",
+}
+
+
 class TestExtract:
     def test_geeft_regels_terug_en_slaat_niets_op(
         self, client, chapter_id, monkeypatch
@@ -42,7 +48,7 @@ class TestExtract:
             f"/api/chapters/{chapter_id}/lessons/extract", json=_body(n=2)
         )
         assert response.status_code == 200
-        assert response.json() == {"rules": [_regel()], "examples": []}
+        assert response.json() == {"rules": [_regel()], "examples": [], "verbs": []}
         # De afbeeldingen zitten als image-content-blocks in het bericht
         content = aanroepen[0]["messages"][0]["content"]
         image_blocks = [b for b in content if b["type"] == "image"]
@@ -244,3 +250,82 @@ class TestWordsExtract:
         systeem = aanroepen[0]["system"]
         assert "voluit" in systeem
         assert "achtervoegsel" in systeem
+
+
+class TestExtractVerbs:
+    def test_geeft_werkwoorden_terug_en_slaat_niets_op(
+        self, client, chapter_id, monkeypatch
+    ):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {
+            "rules": [], "examples": [], "verbs": [
+                {"infinitive_es": " Hablar ", "translation_nl": " praten "},
+                {"infinitive_es": "", "translation_nl": "leeg"},
+                {"infinitive_es": "comer", "translation_nl": "  "},
+            ],
+        })
+        response = client.post(
+            f"/api/chapters/{chapter_id}/lessons/extract", json=_body()
+        )
+        assert response.status_code == 200
+        assert response.json()["verbs"] == [
+            {"infinitive_es": "hablar", "translation_nl": "praten"}
+        ]
+        # Er is niets opgeslagen: nakijken gebeurt in de frontend
+        assert client.get(f"/api/verbs?chapter_id={chapter_id}").json() == []
+
+    def test_bestaande_werkwoorden_worden_gefilterd(
+        self, client, chapter_id, monkeypatch
+    ):
+        client.post("/api/verbs", json={
+            "chapter_id": chapter_id, "infinitive_es": "Hablar",
+            "translation_nl": "praten", "forms": _FORMS,
+        })
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {
+            "rules": [], "examples": [], "verbs": [
+                {"infinitive_es": "hablar", "translation_nl": "praten"},
+                {"infinitive_es": "comer", "translation_nl": "eten"},
+            ],
+        })
+        verbs = client.post(
+            f"/api/chapters/{chapter_id}/lessons/extract", json=_body()
+        ).json()["verbs"]
+        assert verbs == [{"infinitive_es": "comer", "translation_nl": "eten"}]
+
+    def test_dubbel_herkend_werkwoord_telt_een_keer(
+        self, client, chapter_id, monkeypatch
+    ):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {
+            "rules": [], "examples": [], "verbs": [
+                {"infinitive_es": "hablar", "translation_nl": "praten"},
+                {"infinitive_es": " HABLAR ", "translation_nl": "spreken"},
+            ],
+        })
+        verbs = client.post(
+            f"/api/chapters/{chapter_id}/lessons/extract", json=_body()
+        ).json()["verbs"]
+        assert verbs == [{"infinitive_es": "hablar", "translation_nl": "praten"}]
+
+    def test_alleen_werkwoorden_is_geen_502(self, client, chapter_id, monkeypatch):
+        monkeypatch.setattr(llm, "complete_json", lambda **kwargs: {
+            "rules": [], "examples": [],
+            "verbs": [{"infinitive_es": "ser", "translation_nl": "zijn"}],
+        })
+        response = client.post(
+            f"/api/chapters/{chapter_id}/lessons/extract", json=_body()
+        )
+        assert response.status_code == 200
+
+    def test_prompt_vraagt_om_aangeboden_werkwoorden(
+        self, client, chapter_id, monkeypatch
+    ):
+        aanroepen = []
+
+        def fake(**kwargs):
+            aanroepen.append(kwargs)
+            return {"rules": [_regel()], "examples": [], "verbs": []}
+
+        monkeypatch.setattr(llm, "complete_json", fake)
+        client.post(f"/api/chapters/{chapter_id}/lessons/extract", json=_body())
+        systeem = aanroepen[0]["system"].lower()
+        assert "werkwoord" in systeem
+        assert "infinitief" in systeem
