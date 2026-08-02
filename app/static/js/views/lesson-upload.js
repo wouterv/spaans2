@@ -189,6 +189,7 @@ export async function renderLessonUpload(view, chapterId) {
         formStatus.textContent = 'Vervoegingen ophalen…';
         api(`/api/verbs/conjugate?infinitive=${encodeURIComponent(verb.infinitive_es)}`)
           .then((result) => {
+            if (!card.isConnected) return;
             for (const [key] of PERSONS) {
               if (!formInputs[key].value.trim()) formInputs[key].value = result.forms[key];
             }
@@ -196,6 +197,7 @@ export async function renderLessonUpload(view, chapterId) {
             persist();
           })
           .catch((err) => {
+            if (!card.isConnected) return;
             formStatus.textContent = `Vervoegingen niet gevonden (${err.message}) — vul ze zelf in`;
             persist();
           });
