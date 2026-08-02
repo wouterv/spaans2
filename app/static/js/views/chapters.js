@@ -27,7 +27,7 @@ export async function renderChapters(view) {
   const list = el(
     'ul',
     {class: 'list'},
-    ...chapters.map((chapter) =>
+    ...chapters.map((chapter, index) =>
       el(
         'li',
         {},
@@ -41,6 +41,33 @@ export async function renderChapters(view) {
           {class: 'counts'},
           `${chapter.word_count} w · ${chapter.verb_count} ww · ${chapter.grammar_count} gr`,
         ),
+        el('button', {
+          class: 'icon-btn',
+          title: 'Omhoog',
+          'aria-label': `Verplaats ${chapter.name} omhoog`,
+          // el() gebruikt setAttribute: null wordt overgeslagen, '' zet het attribuut
+          disabled: index === 0 ? '' : null,
+          onclick: async () => {
+            await api(`/api/chapters/${chapter.id}/move`, {
+              method: 'POST',
+              body: {direction: 'up'},
+            });
+            renderChapters(view);
+          },
+        }, '▲'),
+        el('button', {
+          class: 'icon-btn',
+          title: 'Omlaag',
+          'aria-label': `Verplaats ${chapter.name} omlaag`,
+          disabled: index === chapters.length - 1 ? '' : null,
+          onclick: async () => {
+            await api(`/api/chapters/${chapter.id}/move`, {
+              method: 'POST',
+              body: {direction: 'down'},
+            });
+            renderChapters(view);
+          },
+        }, '▼'),
         el('button', {
           class: 'icon-btn',
           title: 'Hernoemen',
