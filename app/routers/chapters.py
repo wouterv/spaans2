@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -8,6 +10,10 @@ router = APIRouter(prefix="/api/chapters")
 
 class ChapterIn(BaseModel):
     name: str = Field(min_length=1)
+
+
+class MoveRequest(BaseModel):
+    direction: Literal["up", "down"]
 
 
 @router.get("")
@@ -38,6 +44,27 @@ def create_chapter(body: ChapterIn, conn=Depends(get_conn)):
     )
     conn.commit()
     return {"id": cursor.lastrowid, "name": body.name}
+
+
+@router.post("/{chapter_id}/move")
+def move_chapter(chapter_id: int, body: MoveRequest, conn=Depends(get_conn)):
+    ids = [
+        row["id"]
+        for row in conn.execute("SELECT id FROM chapters ORDER BY position, id")
+    ]
+    if chapter_id not in ids:
+        raise HTTPException(status_code=404, detail="Hoofdstuk niet gevonden")
+    index = ids.index(chapter_id)
+    neighbour = index - 1 if body.direction == "up" else index + 1
+    if 0 <= neighbour < len(ids):
+        ids[index], ids[neighbour] = ids[neighbour], ids[index]
+    # Hernummeren naar 1..n herstelt ook oude rijen die allemaal op 0 staan
+    conn.executemany(
+        "UPDATE chapters SET position = ? WHERE id = ?",
+        list(enumerate(ids, start=1)),
+    )
+    conn.commit()
+    return {"id": chapter_id, "position": ids.index(chapter_id) + 1}
 
 
 @router.put("/{chapter_id}")
