@@ -127,9 +127,25 @@ def test_article_alone_is_not_stripped_to_nothing():
     assert check_answer("el coche", "el").result == "wrong"
 
 
-def test_form_question_still_requires_the_article():
-    # Bij een geslachtsvraag toetst het lidwoord juist het geslacht
-    # (el estudiante/la estudiante) en blijft het dus verplicht.
+def test_form_question_is_also_lenient_about_articles():
+    # Boek-notatie zet het lidwoord vaak alleen op de eerste vorm
+    # (de oom/tante); het lidwoord mag dan ook bij een geslachtsvraag
+    # aan één kant ontbreken.
+    assert check_answer("de oom/tante", "oom", form=0).result == "correct"
+    assert check_answer("de oom/tante", "de tante", form=1).result == "correct"
+    stored = "de kleinzoon/kleindochter"
+    assert check_answer(stored, "de kleindochter", form=1).result == "correct"
+    assert check_answer(stored, "kleinzoon", form=0).result == "correct"
+
+
+def test_form_question_keeps_wrong_word_wrong():
+    assert check_answer("de oom/tante", "tante", form=0).result == "wrong"
+    assert check_answer("el primo/la prima", "la prima", form=0).result == "wrong"
+
+
+def test_form_question_requires_article_when_it_is_the_only_difference():
+    # Bij el estudiante/la estudiante is het lidwoord het enige
+    # geslachtsverschil; dan blijft het verplicht.
     stored = "el estudiante/la estudiante"
     assert check_answer(stored, "estudiante", form=0).result == "wrong"
     assert check_answer(stored, "el estudiante", form=0).result == "correct"

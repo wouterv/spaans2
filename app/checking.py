@@ -7,8 +7,10 @@ als goed antwoord; met 'form' (de index van de gevraagde vorm) telt
 alleen de bijbehorende vorm.
 Interpunctie zoals ¿? ¡! hoeft niet meegetypt te worden.
 Een lidwoord vooraan mag aan één kant ontbreken (coche == el coche),
-maar een verkeerd lidwoord blijft fout. Bij een geslachtsvraag ('form')
-toetst het lidwoord juist het geslacht en blijft het verplicht.
+maar een verkeerd lidwoord blijft fout. Dat geldt ook bij een
+geslachtsvraag ('form'), behalve als de vormen van het paar zonder
+lidwoord samenvallen (el estudiante/la estudiante): dan is het lidwoord
+het enige geslachtsverschil en blijft het verplicht.
 """
 
 import re
@@ -54,7 +56,13 @@ def _article_match(variant, answer):
     return _without_article(variant) == answer or _without_article(answer) == variant
 
 
+def _stripped(text):
+    norm = _normalize(text)
+    return _without_article(norm) or norm
+
+
 def _variants(stored, form=None):
+    """Antwoordvarianten als (tekst, lidwoord_optioneel)-paren."""
     variants = []
     for synonym in stored.split(";"):
         synonym = synonym.strip()
@@ -62,31 +70,38 @@ def _variants(stored, form=None):
             continue
         forms = [f.strip() for f in synonym.split("/") if f.strip()]
         if form is not None and len(forms) > 1:
-            variants.append(forms[min(form, len(forms) - 1)])
+            chosen = forms[min(form, len(forms) - 1)]
+            # Vallen de vormen zonder lidwoord samen, dan is het lidwoord
+            # het enige geslachtsverschil en blijft het verplicht
+            unique = sum(_stripped(f) == _stripped(chosen) for f in forms) == 1
+            variants.append((chosen, unique))
         else:
-            variants.append(synonym)
+            variants.append((synonym, True))
             if len(forms) > 1:
-                variants.extend(forms)
+                variants.extend((f, True) for f in forms)
     return variants
 
 
 def check_answer(stored, answer, form=None):
     variants = _variants(stored, form)
-    correct_answer = "; ".join(variants) if form is not None else stored.strip()
+    correct_answer = (
+        "; ".join(text for text, _ in variants)
+        if form is not None
+        else stored.strip()
+    )
     norm_answer = _normalize(answer)
-    lenient_article = form is None
     if norm_answer:
-        for variant in variants:
+        for variant, lenient in variants:
             norm_variant = _normalize(variant)
             if norm_variant == norm_answer or (
-                lenient_article and _article_match(norm_variant, norm_answer)
+                lenient and _article_match(norm_variant, norm_answer)
             ):
                 return CheckResult("correct", correct_answer, variant)
         folded_answer = _fold_accents(norm_answer)
-        for variant in variants:
+        for variant, lenient in variants:
             folded_variant = _fold_accents(_normalize(variant))
             if folded_variant == folded_answer or (
-                lenient_article and _article_match(folded_variant, folded_answer)
+                lenient and _article_match(folded_variant, folded_answer)
             ):
                 return CheckResult("correct_accent", correct_answer, variant)
     return CheckResult("wrong", correct_answer, None)
