@@ -55,8 +55,12 @@ export async function renderPracticeVerbs(view, chapterId, mode) {
 
     const continueButton = el('button', {
       class: 'btn-primary btn-big', style: 'margin-top:1rem', hidden: '',
-      onclick: finishVerb,
+      type: 'button', onclick: finishVerb,
     }, 'Verder');
+    const checkButton = el('button', {
+      class: 'btn-primary btn-big', style: 'margin-top:1rem',
+      type: 'submit', hidden: withRecognition ? '' : null,
+    }, 'Controleer');
 
     function finishVerb() {
       if (wrongCount) queue.wrong();
@@ -89,31 +93,35 @@ export async function renderPracticeVerbs(view, chapterId, mode) {
       return result;
     }
 
-    if (!withRecognition) {
-      for (const entry of entries) {
-        entry.input.addEventListener('keydown', async (e) => {
-          if (e.key !== 'Enter') return;
-          e.preventDefault();
+    // Een echt formulier: Enter op desktop én de "ga"-toets op mobiele
+    // toetsenborden triggeren de submit; de knop is het klikbare alternatief.
+    const answerForm = el('form', {
+      onsubmit: async (e) => {
+        e.preventDefault();
+        for (const entry of entries) {
           const answer = entry.input.value.trim();
-          if (!answer) return;
-          await checkField(entry, answer);
-          if (checkedCount === entries.length) {
-            continueButton.hidden = false;
-            continueButton.focus();
-          } else {
-            entries.find((other) => !other.checked)?.input.focus();
-          }
-        });
-      }
-    }
+          if (!entry.checked && answer) await checkField(entry, answer);
+        }
+        if (checkedCount === entries.length) {
+          checkButton.hidden = true;
+          continueButton.hidden = false;
+          continueButton.focus();
+        } else {
+          entries.find((entry) => !entry.checked)?.input.focus();
+        }
+      },
+    },
+      el('table', {class: 'entry', style: 'text-align:left'}, el('tbody', {}, ...rows)),
+      checkButton,
+      continueButton,
+    );
 
-    setChildren(container, 
+    setChildren(container,
       progressLine(mastered, total),
       el('div', {class: 'practice-card'},
         el('div', {class: 'practice-hint'}, `Nederlands · ${tense}`),
         el('div', {class: 'practice-word'}, verb.translation_nl),
-        el('table', {class: 'entry', style: 'text-align:left'}, el('tbody', {}, ...rows)),
-        continueButton,
+        answerForm,
       ),
       speechMode && !canListen()
         ? el('p', {class: 'muted', style: 'font-size:0.85rem'},
