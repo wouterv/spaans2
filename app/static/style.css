@@ -111,6 +111,7 @@ button:hover, .btn:hover { border-color: var(--azul); }
   padding: 0.9rem 1.2rem;
   width: 100%;
 }
+button:disabled { opacity: 0.5; cursor: default; }
 button:focus-visible, .btn:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: 3px solid var(--sol);
   outline-offset: 1px;

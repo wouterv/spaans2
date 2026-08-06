@@ -65,8 +65,8 @@ export async function renderCombined(view) {
       });
       return el('label', {style: 'display:flex; gap:0.5rem; align-items:center; margin-top:0.4rem'},
         box,
-        el('span', {class: 'grow'}, chapter.name),
-        el('span', {class: 'counts'},
+        el('span', {style: 'flex:1'}, chapter.name),
+        el('span', {class: 'counts', style: 'color:var(--muted); font-size:0.8rem; white-space:nowrap'},
           `${chapter.word_count} w · ${chapter.verb_count} ww · ${chapter.exercise_count} oef`),
       );
     }),
@@ -128,7 +128,7 @@ export async function renderCombined(view) {
         el('p', {class: 'muted'}, 'Conversatie over de lesstof van de gekozen hoofdstukken.'),
         el('div', {class: 'row'},
           startKnop('💬 Gesprek starten', (ids) => `#/gesprek/${ids}`,
-            telling('word_count') + telling('verb_count') + telling('grammar_count')),
+            telling('word_count') + telling('verb_count') + telling('grammar_count') + telling('example_count')),
         ),
       ),
     );
