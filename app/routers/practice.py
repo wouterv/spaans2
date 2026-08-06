@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
 from app.checking import check_answer
-from app.deps import get_conn
+from app.deps import get_conn, resolve_chapter_ids
 from app.routers.verbs import list_verbs
 from app.routers.words import list_words
 
@@ -32,11 +32,17 @@ class CheckRequest(BaseModel):
 
 @router.get("/items")
 def practice_items(
-    chapter_id: int, type: Literal["words", "verbs"], conn=Depends(get_conn)
+    type: Literal["words", "verbs"],
+    chapter_id: int | None = None,
+    chapter_ids: str | None = None,
+    conn=Depends(get_conn),
 ):
-    if type == "words":
-        return list_words(chapter_id, conn)
-    return list_verbs(chapter_id, conn)
+    ids = resolve_chapter_ids(conn, chapter_id, chapter_ids)
+    lister = list_words if type == "words" else list_verbs
+    items = []
+    for cid in ids:
+        items.extend(lister(cid, conn))
+    return items
 
 
 def _stored_answer(conn, body):

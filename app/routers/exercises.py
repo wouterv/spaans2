@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from app import llm
 from app.checking import CheckResult, check_answer
-from app.deps import chapter_or_404, get_conn
+from app.deps import chapter_or_404, get_conn, resolve_chapter_ids
 from app.lesstof import lesson_context
 from app.routers.examples import list_examples
 from app.routers.grammar import list_rules
@@ -15,17 +15,25 @@ router = APIRouter(prefix="/api/exercises")
 
 
 @router.get("")
-def list_exercises(chapter_id: int, conn=Depends(get_conn)):
-    rows = conn.execute(
-        "SELECT id, chapter_id, type, instruction, prompt, answer, options, "
-        "explanation FROM exercises WHERE chapter_id = ? AND disabled = 0 "
-        "ORDER BY id",
-        (chapter_id,),
-    ).fetchall()
-    return [
-        dict(row, options=json.loads(row["options"]) if row["options"] else None)
-        for row in rows
-    ]
+def list_exercises(
+    chapter_id: int | None = None,
+    chapter_ids: str | None = None,
+    conn=Depends(get_conn),
+):
+    ids = resolve_chapter_ids(conn, chapter_id, chapter_ids)
+    exercises = []
+    for cid in ids:
+        rows = conn.execute(
+            "SELECT id, chapter_id, type, instruction, prompt, answer, "
+            "options, explanation FROM exercises "
+            "WHERE chapter_id = ? AND disabled = 0 ORDER BY id",
+            (cid,),
+        ).fetchall()
+        exercises.extend(
+            dict(row, options=json.loads(row["options"]) if row["options"] else None)
+            for row in rows
+        )
+    return exercises
 
 
 @router.post("/{exercise_id}/disable", status_code=204)

@@ -289,3 +289,46 @@ def test_check_with_alternatives_picks_best(app_instance, client, word_id):
     ).fetchone()
     conn.close()
     assert row == (1, 0)
+
+
+class TestChapterIds:
+    def test_combineert_woorden_van_meerdere_hoofdstukken(self, client, chapter_id):
+        tweede = client.post("/api/chapters", json={"name": "H2"}).json()["id"]
+        client.post("/api/words", json={
+            "chapter_id": chapter_id, "spanish": "casa", "dutch": "huis"})
+        client.post("/api/words", json={
+            "chapter_id": tweede, "spanish": "coche", "dutch": "auto"})
+        items = client.get(
+            f"/api/practice/items?type=words&chapter_ids={tweede},{chapter_id}"
+        ).json()
+        # Volgorde van de meegegeven lijst
+        assert [w["spanish"] for w in items] == ["coche", "casa"]
+
+    def test_chapter_ids_met_onbekend_id_is_404(self, client, chapter_id):
+        response = client.get(
+            f"/api/practice/items?type=words&chapter_ids={chapter_id},999"
+        )
+        assert response.status_code == 404
+
+    def test_beide_of_geen_parameters_is_422(self, client, chapter_id):
+        beide = client.get(
+            f"/api/practice/items?type=words&chapter_id={chapter_id}"
+            f"&chapter_ids={chapter_id}"
+        )
+        geen = client.get("/api/practice/items?type=words")
+        assert beide.status_code == 422
+        assert geen.status_code == 422
+
+    def test_lege_of_rare_lijst_is_422(self, client, chapter_id):
+        assert client.get(
+            "/api/practice/items?type=words&chapter_ids="
+        ).status_code == 422
+        assert client.get(
+            "/api/practice/items?type=words&chapter_ids=1,abc"
+        ).status_code == 422
+
+    def test_chapter_id_blijft_werken(self, client, chapter_id, word_id):
+        items = client.get(
+            f"/api/practice/items?chapter_id={chapter_id}&type=words"
+        ).json()
+        assert len(items) == 1

@@ -532,3 +532,20 @@ class TestDubbelen:
         )
         assert response.status_code == 502
         assert "bestaande" in response.json()["detail"]
+
+
+class TestChapterIds:
+    def test_combineert_oefeningen_in_lijstvolgorde(self, client, app_instance):
+        eerste = client.post("/api/chapters", json={"name": "H1"}).json()["id"]
+        tweede = client.post("/api/chapters", json={"name": "H2"}).json()["id"]
+        _insert_exercise(app_instance, eerste, prompt="Yo ___ (1).")
+        _insert_exercise(app_instance, tweede, prompt="Yo ___ (2).")
+        body = client.get(f"/api/exercises?chapter_ids={tweede},{eerste}").json()
+        assert [e["prompt"] for e in body] == ["Yo ___ (2).", "Yo ___ (1)."]
+
+    def test_onbekend_id_is_404_en_beide_params_is_422(self, client):
+        eerste = client.post("/api/chapters", json={"name": "H1"}).json()["id"]
+        assert client.get("/api/exercises?chapter_ids=999").status_code == 404
+        assert client.get(
+            f"/api/exercises?chapter_id={eerste}&chapter_ids={eerste}"
+        ).status_code == 422
