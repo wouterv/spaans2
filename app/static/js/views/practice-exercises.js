@@ -11,7 +11,7 @@ export async function renderPracticeExercises(view, chapterIds) {
   if (!exercises.length) {
     setChildren(view, backLink,
       el('p', {class: 'muted'},
-        'Dit hoofdstuk heeft nog geen oefeningen. Genereer ze op het hoofdstukscherm.'));
+        'Nog geen oefeningen in deze selectie. Genereer ze op het hoofdstukscherm.'));
     return;
   }
 

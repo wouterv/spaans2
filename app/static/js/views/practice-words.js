@@ -12,7 +12,7 @@ export async function renderPracticeWords(view, chapterIds, direction, mode) {
 
   if (!words.length) {
     setChildren(view, backLink,
-      el('p', {class: 'muted'}, 'Dit hoofdstuk heeft nog geen woorden om te oefenen.'));
+      el('p', {class: 'muted'}, 'Nog geen woorden om te oefenen in deze selectie.'));
     return;
   }
 

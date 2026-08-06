@@ -17,7 +17,7 @@ export async function renderPracticeVerbs(view, chapterIds, mode) {
 
   if (!verbs.length) {
     setChildren(view, backLink,
-      el('p', {class: 'muted'}, 'Dit hoofdstuk heeft nog geen werkwoorden om te oefenen.'));
+      el('p', {class: 'muted'}, 'Nog geen werkwoorden om te oefenen in deze selectie.'));
     return;
   }
 
