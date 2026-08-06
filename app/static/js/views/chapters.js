@@ -98,9 +98,13 @@ export async function renderChapters(view) {
     ),
   );
 
-  setChildren(view, 
+  setChildren(view,
     el('h1', {}, 'Hoofdstukken'),
     form,
+    chapters.length >= 2
+      ? el('p', {style: 'margin-top:0.75rem'},
+          el('a', {class: 'btn', href: '#/samen'}, '🎯 Samen oefenen'))
+      : null,
     el('div', {class: 'eyebrow'}, chapters.length ? 'Jouw lessen' : ''),
     chapters.length
       ? list

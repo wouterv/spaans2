@@ -14,12 +14,14 @@ import {renderPracticeVerbs} from './views/practice-verbs.js';
 import {renderPracticeExercises} from './views/practice-exercises.js';
 import {renderVoiceSettings} from './views/voice-settings.js';
 import {renderConversation} from './views/conversation.js';
+import {renderCombined} from './views/combined.js';
 
 const view = document.getElementById('view');
 
 const routes = [
   [/^$/, () => renderChapters(view)],
   [/^stemmen$/, () => renderVoiceSettings(view)],
+  [/^samen$/, () => renderCombined(view)],
   [/^h\/(\d+)$/, (id) => renderChapterHub(view, +id)],
   [/^h\/(\d+)\/woorden$/, (id) => renderWordsEntry(view, +id)],
   [/^h\/(\d+)\/werkwoorden$/, (id) => renderVerbsEntry(view, +id)],
