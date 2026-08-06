@@ -32,3 +32,19 @@ def lesson_context(conn, chapter_id):
         parts.append("\nVoorbeeldoefeningen uit het boek:")
         parts.extend(f"- {ex['text']}" for ex in examples)
     return "\n".join(parts)
+
+
+def combined_context(conn, chapter_ids):
+    """Lesstof van meerdere hoofdstukken, elk onder een kop met de naam.
+
+    Hoofdstukken zonder lesstof worden overgeslagen.
+    """
+    parts = []
+    for chapter_id in chapter_ids:
+        row = conn.execute(
+            "SELECT name FROM chapters WHERE id = ?", (chapter_id,)
+        ).fetchone()
+        context = lesson_context(conn, chapter_id)
+        if row and context:
+            parts.append(f"# {row['name']}\n{context}")
+    return "\n\n".join(parts)

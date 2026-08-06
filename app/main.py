@@ -60,6 +60,7 @@ def create_app(db_path=None, password_hash=None, secret_key=None):
     app.include_router(exercises.router)
     app.include_router(lessons.router)
     app.include_router(conversation.router)
+    app.include_router(conversation.combined_router)
     app.include_router(examples.router)
 
     @app.get("/api/health")

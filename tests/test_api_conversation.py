@@ -206,3 +206,56 @@ class TestCorrectieHerhaling:
             "messages": [{"role": "user", "text": "Hola"}],
         })
         assert response.status_code == 200
+
+
+class TestSamenGesprek:
+    def _tweede_hoofdstuk(self, client, naam="H2"):
+        cid = client.post("/api/chapters", json={"name": naam}).json()["id"]
+        client.post("/api/words", json={
+            "chapter_id": cid, "spanish": "coche", "dutch": "auto",
+        })
+        return cid
+
+    def test_bundelt_lesstof_met_naamkoppen(self, client, chapter_id, monkeypatch):
+        tweede = self._tweede_hoofdstuk(client)
+        aanroepen = []
+        monkeypatch.setattr(llm, "complete_json", _fake(aanroepen=aanroepen))
+        response = client.post("/api/conversation", json={
+            "chapter_ids": [chapter_id, tweede], "messages": [],
+        })
+        assert response.status_code == 200
+        assert response.json()["reply"] == "¡Hola! ¿Cómo estás?"
+        systeem = aanroepen[0]["system"]
+        assert "# H1" in systeem
+        assert "# H2" in systeem
+        assert "Ser en estar" in systeem
+        assert "coche" in systeem
+        # H1-kop staat vóór H2-kop (volgorde van de lijst)
+        assert systeem.index("# H1") < systeem.index("# H2")
+
+    def test_onbekend_id_is_404_en_lege_lijst_is_422(self, client, chapter_id):
+        assert client.post("/api/conversation", json={
+            "chapter_ids": [999], "messages": [],
+        }).status_code == 404
+        assert client.post("/api/conversation", json={
+            "chapter_ids": [], "messages": [],
+        }).status_code == 422
+
+    def test_selectie_zonder_lesstof_is_400(self, client, monkeypatch):
+        leeg = client.post("/api/chapters", json={"name": "Leeg"}).json()["id"]
+        monkeypatch.setattr(llm, "complete_json", _fake())
+        response = client.post("/api/conversation", json={
+            "chapter_ids": [leeg], "messages": [],
+        })
+        assert response.status_code == 400
+
+    def test_hoofdstuk_zonder_lesstof_krijgt_geen_kop(
+        self, client, chapter_id, monkeypatch
+    ):
+        leeg = client.post("/api/chapters", json={"name": "LeegHoofdstuk"}).json()["id"]
+        aanroepen = []
+        monkeypatch.setattr(llm, "complete_json", _fake(aanroepen=aanroepen))
+        client.post("/api/conversation", json={
+            "chapter_ids": [chapter_id, leeg], "messages": [],
+        })
+        assert "LeegHoofdstuk" not in aanroepen[0]["system"]

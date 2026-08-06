@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from app import llm
 from app.deps import chapter_or_404, get_conn
-from app.lesstof import lesson_context
+from app.lesstof import combined_context, lesson_context
 
 router = APIRouter(prefix="/api/chapters")
 
@@ -71,29 +71,7 @@ _OPENING = (
 )
 
 
-class TurnIn(BaseModel):
-    role: Literal["user", "assistant"]
-    text: str = Field(min_length=1, max_length=4000)
-    # De correctie die de leerling destijds op dit (user-)bericht kreeg;
-    # gaat terug naar het model zodat het niets dubbel corrigeert
-    correction: str = Field(default="", max_length=1000)
-
-
-class ConversationRequest(BaseModel):
-    messages: list[TurnIn] = Field(default=[], max_length=100)
-
-
-@router.post("/{chapter_id}/conversation")
-def conversation_turn(
-    chapter_id: int, body: ConversationRequest, conn=Depends(get_conn)
-):
-    chapter_or_404(conn, chapter_id)
-    lesstof = lesson_context(conn, chapter_id)
-    if not lesstof:
-        raise HTTPException(
-            status_code=400,
-            detail="Dit hoofdstuk heeft nog geen lesstof om over te praten",
-        )
+def _turn(lesstof, body):
     if body.messages:
         if body.messages[-1].role != "user":
             raise HTTPException(
@@ -139,3 +117,51 @@ def conversation_turn(
     if len(correction) > MAX_CORRECTION_LENGTH:
         correction = ""
     return {"correction": correction, "reply": reply}
+
+
+class TurnIn(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str = Field(min_length=1, max_length=4000)
+    # De correctie die de leerling destijds op dit (user-)bericht kreeg;
+    # gaat terug naar het model zodat het niets dubbel corrigeert
+    correction: str = Field(default="", max_length=1000)
+
+
+class ConversationRequest(BaseModel):
+    messages: list[TurnIn] = Field(default=[], max_length=100)
+
+
+@router.post("/{chapter_id}/conversation")
+def conversation_turn(
+    chapter_id: int, body: ConversationRequest, conn=Depends(get_conn)
+):
+    chapter_or_404(conn, chapter_id)
+    lesstof = lesson_context(conn, chapter_id)
+    if not lesstof:
+        raise HTTPException(
+            status_code=400,
+            detail="Dit hoofdstuk heeft nog geen lesstof om over te praten",
+        )
+    return _turn(lesstof, body)
+
+
+combined_router = APIRouter(prefix="/api")
+
+
+class CombinedConversationRequest(ConversationRequest):
+    chapter_ids: list[int] = Field(min_length=1)
+
+
+@combined_router.post("/conversation")
+def combined_conversation_turn(
+    body: CombinedConversationRequest, conn=Depends(get_conn)
+):
+    for chapter_id in body.chapter_ids:
+        chapter_or_404(conn, chapter_id)
+    lesstof = combined_context(conn, body.chapter_ids)
+    if not lesstof:
+        raise HTTPException(
+            status_code=400,
+            detail="De gekozen hoofdstukken hebben nog geen lesstof om over te praten",
+        )
+    return _turn(lesstof, body)
