@@ -8,9 +8,12 @@ const SPOKEN_CUES = {
   vosotros: 'vosotros', ellos: 'ellos',
 };
 
-export async function renderPracticeVerbs(view, chapterId, mode) {
-  const verbs = await api(`/api/practice/items?chapter_id=${chapterId}&type=verbs`);
-  const backLink = el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, '← Hoofdstuk'));
+export async function renderPracticeVerbs(view, chapterIds, mode) {
+  const verbs = await api(`/api/practice/items?chapter_ids=${chapterIds.join(',')}&type=verbs`);
+  const single = chapterIds.length === 1;
+  const backLink = el('p', {}, el('a', {
+    href: single ? `#/h/${chapterIds[0]}` : '#/samen', class: 'muted',
+  }, single ? '← Hoofdstuk' : '← Samen oefenen'));
 
   if (!verbs.length) {
     setChildren(view, backLink,
@@ -181,9 +184,9 @@ export async function renderPracticeVerbs(view, chapterId, mode) {
         el('div', {class: 'row', style: 'margin-top:1rem'},
           el('button', {
             class: 'btn-primary btn-big',
-            onclick: () => renderPracticeVerbs(view, chapterId, mode),
+            onclick: () => renderPracticeVerbs(view, chapterIds, mode),
           }, 'Nog een keer'),
-          el('a', {class: 'btn btn-big', href: `#/h/${chapterId}`}, 'Klaar'),
+          el('a', {class: 'btn btn-big', href: single ? `#/h/${chapterIds[0]}` : '#/samen'}, 'Klaar'),
         ),
       ),
     );

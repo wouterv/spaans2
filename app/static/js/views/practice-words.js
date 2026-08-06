@@ -3,9 +3,12 @@ import {createQueue, shuffle} from '../queue.js';
 import {LANG, canListen, listen, speak, stopListening} from '../speech.js';
 import {formCount, pickForm, readable, speakable} from '../wordtext.js';
 
-export async function renderPracticeWords(view, chapterId, direction, mode) {
-  const words = await api(`/api/practice/items?chapter_id=${chapterId}&type=words`);
-  const backLink = el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, '← Hoofdstuk'));
+export async function renderPracticeWords(view, chapterIds, direction, mode) {
+  const words = await api(`/api/practice/items?chapter_ids=${chapterIds.join(',')}&type=words`);
+  const single = chapterIds.length === 1;
+  const backLink = el('p', {}, el('a', {
+    href: single ? `#/h/${chapterIds[0]}` : '#/samen', class: 'muted',
+  }, single ? '← Hoofdstuk' : '← Samen oefenen'));
 
   if (!words.length) {
     setChildren(view, backLink,
@@ -216,9 +219,9 @@ export async function renderPracticeWords(view, chapterId, direction, mode) {
         el('div', {class: 'row', style: 'margin-top:1rem'},
           el('button', {
             class: 'btn-primary btn-big',
-            onclick: () => renderPracticeWords(view, chapterId, direction, mode),
+            onclick: () => renderPracticeWords(view, chapterIds, direction, mode),
           }, 'Nog een keer'),
-          el('a', {class: 'btn btn-big', href: `#/h/${chapterId}`}, 'Klaar'),
+          el('a', {class: 'btn btn-big', href: single ? `#/h/${chapterIds[0]}` : '#/samen'}, 'Klaar'),
         ),
       ),
     );

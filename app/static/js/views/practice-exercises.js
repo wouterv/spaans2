@@ -1,9 +1,12 @@
 import {api, el, setChildren} from '../api.js';
 import {createQueue, shuffle} from '../queue.js';
 
-export async function renderPracticeExercises(view, chapterId) {
-  const exercises = await api(`/api/exercises?chapter_id=${chapterId}`);
-  const backLink = el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, '← Hoofdstuk'));
+export async function renderPracticeExercises(view, chapterIds) {
+  const exercises = await api(`/api/exercises?chapter_ids=${chapterIds.join(',')}`);
+  const single = chapterIds.length === 1;
+  const backLink = el('p', {}, el('a', {
+    href: single ? `#/h/${chapterIds[0]}` : '#/samen', class: 'muted',
+  }, single ? '← Hoofdstuk' : '← Samen oefenen'));
 
   if (!exercises.length) {
     setChildren(view, backLink,
@@ -165,9 +168,9 @@ export async function renderPracticeExercises(view, chapterId) {
         el('div', {class: 'row', style: 'margin-top:1rem'},
           el('button', {
             class: 'btn-primary btn-big',
-            onclick: () => renderPracticeExercises(view, chapterId),
+            onclick: () => renderPracticeExercises(view, chapterIds),
           }, 'Nog een keer'),
-          el('a', {class: 'btn btn-big', href: `#/h/${chapterId}`}, 'Klaar'),
+          el('a', {class: 'btn btn-big', href: single ? `#/h/${chapterIds[0]}` : '#/samen'}, 'Klaar'),
         ),
       ),
     );

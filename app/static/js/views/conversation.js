@@ -11,14 +11,15 @@ function voorlezenAan() {
   return localStorage.getItem(VOORLEES_KEY) !== 'uit';
 }
 
-export async function renderConversation(view, chapterId) {
+export async function renderConversation(view, chapterIds) {
+  const single = chapterIds.length === 1;
   const chapters = await api('/api/chapters');
-  const chapter = chapters.find((c) => c.id === chapterId);
-  if (!chapter) { location.hash = '#/'; return; }
+  const chapter = single ? chapters.find((c) => c.id === chapterIds[0]) : null;
+  if (single && !chapter) { location.hash = '#/'; return; }
 
   // De server slaat niets op; de geschiedenis staat lokaal in de browser
   // ({role, text, correction?}) en overleeft zo een refresh
-  const gesprekKey = `spaans-gesprek-${chapterId}`;
+  const gesprekKey = `spaans-gesprek-${chapterIds.join('-')}`;
   const history = loadConcept(gesprekKey)?.data ?? [];
   const persist = () => saveConcept(gesprekKey, history);
   const chat = el('div', {class: 'chat'});
@@ -66,11 +67,15 @@ export async function renderConversation(view, chapterId) {
   }, '🆕 Nieuw gesprek');
 
   setChildren(view,
-    el('p', {}, el('a', {href: `#/h/${chapterId}`, class: 'muted'}, `← ${chapter.name}`)),
-    el('h1', {}, 'Gesprek'),
+    el('p', {}, el('a', {
+      href: single ? `#/h/${chapterIds[0]}` : '#/samen', class: 'muted',
+    }, single ? `← ${chapter.name}` : '← Samen oefenen')),
+    el('h1', {}, single ? 'Gesprek' : 'Gesprek — samen oefenen'),
     el('div', {class: 'row'},
       el('p', {class: 'muted', style: 'flex:1; margin:0'},
-        'Praat in het Spaans over de lesstof van dit hoofdstuk. Correcties verschijnen onder je bericht.'),
+        single
+          ? 'Praat in het Spaans over de lesstof van dit hoofdstuk. Correcties verschijnen onder je bericht.'
+          : 'Praat in het Spaans over de lesstof van de gekozen hoofdstukken. Correcties verschijnen onder je bericht.'),
       newButton,
       speakToggle,
     ),
@@ -95,10 +100,13 @@ export async function renderConversation(view, chapterId) {
     const waiting = bubble('partner wachten', '…');
     try {
       const {correction, reply} = await api(
-        `/api/chapters/${chapterId}/conversation`,
+        single ? `/api/chapters/${chapterIds[0]}/conversation` : '/api/conversation',
         // Correcties gaan mee, zodat het model ziet wat al behandeld is
-        {method: 'POST', body: {messages: history.map(({role, text, correction}) =>
-          correction ? {role, text, correction} : {role, text})}},
+        {method: 'POST', body: {
+          ...(single ? {} : {chapter_ids: chapterIds}),
+          messages: history.map(({role, text, correction}) =>
+            correction ? {role, text, correction} : {role, text}),
+        }},
       );
       waiting.remove();
       if (correction) {

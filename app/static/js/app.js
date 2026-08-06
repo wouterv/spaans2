@@ -28,19 +28,32 @@ const routes = [
   [/^h\/(\d+)\/lezen$/, (id) => renderGrammarReader(view, +id)],
   [/^h\/(\d+)\/les-uploaden$/, (id) => renderLessonUpload(view, +id)],
   [/^h\/(\d+)\/woorden-scannen$/, (id) => renderWordsScan(view, +id)],
-  [/^h\/(\d+)\/gesprek$/, (id) => renderConversation(view, +id)],
+  [/^h\/(\d+)\/gesprek$/, (id) => renderConversation(view, [+id])],
   [
     /^h\/(\d+)\/oefen\/woorden\/(es_nl|nl_es)\/(typen|spraak)$/,
-    (id, direction, mode) => renderPracticeWords(view, +id, direction, mode),
+    (id, direction, mode) => renderPracticeWords(view, [+id], direction, mode),
   ],
   [
     /^h\/(\d+)\/oefen\/werkwoorden\/(typen|spraak)$/,
-    (id, mode) => renderPracticeVerbs(view, +id, mode),
+    (id, mode) => renderPracticeVerbs(view, [+id], mode),
   ],
   [
     /^h\/(\d+)\/oefen\/oefeningen$/,
-    (id) => renderPracticeExercises(view, +id),
+    (id) => renderPracticeExercises(view, [+id]),
   ],
+  [
+    /^oefen\/(\d+(?:,\d+)*)\/woorden\/(es_nl|nl_es)\/(typen|spraak)$/,
+    (ids, direction, mode) => renderPracticeWords(view, ids.split(',').map(Number), direction, mode),
+  ],
+  [
+    /^oefen\/(\d+(?:,\d+)*)\/werkwoorden\/(typen|spraak)$/,
+    (ids, mode) => renderPracticeVerbs(view, ids.split(',').map(Number), mode),
+  ],
+  [
+    /^oefen\/(\d+(?:,\d+)*)\/oefeningen$/,
+    (ids) => renderPracticeExercises(view, ids.split(',').map(Number)),
+  ],
+  [/^gesprek\/(\d+(?:,\d+)*)$/, (ids) => renderConversation(view, ids.split(',').map(Number))],
 ];
 
 async function route() {
